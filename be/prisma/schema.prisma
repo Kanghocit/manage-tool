@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleName {
+  admin
+  user
+}
+
+enum UserStatus {
+  active
+  inactive
+  banned
+}
+
+enum ToolStatus {
+  active
+  inactive
+}
+
+enum SubscriptionStatus {
+  active
+  expired
+  cancelled
+}
+
+model User {
+  id             String         @id @default(uuid())
+  email          String         @unique
+  passwordHash   String
+  fullName       String
+  role           RoleName       @default(user)
+  status         UserStatus     @default(active)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  createdTools   Tool[]         @relation("ToolCreator")
+  subscriptions  Subscription[]
+  refreshTokens  RefreshToken[]
+  auditLogs      AuditLog[]     @relation("AuditActor")
+  usageLogs      ToolUsageLog[]
+}
+
+model Tool {
+  id            String         @id @default(uuid())
+  name          String
+  slug          String         @unique
+  description   String
+  type          String         @default("playwright")
+  status        ToolStatus     @default(active)
+  configJson    Json?
+  createdById   String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  createdBy     User           @relation("ToolCreator", fields: [createdById], references: [id])
+  subscriptions Subscription[]
+  usageLogs     ToolUsageLog[]
+}
+
+model Subscription {
+  id          String             @id @default(uuid())
+  userId      String
+  toolId      String
+  startAt     DateTime
+  endAt       DateTime
+  status      SubscriptionStatus @default(active)
+  createdById String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  user        User               @relation(fields: [userId], references: [id])
+  tool        Tool               @relation(fields: [toolId], references: [id])
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  userId     String
+  tokenHash  String
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String
+  action      String
+  targetType  String
+  targetId    String
+  metadataJson Json?
+  createdAt   DateTime @default(now())
+  actor       User     @relation("AuditActor", fields: [actorUserId], references: [id])
+}
+
+model ToolUsageLog {
+  id          String   @id @default(uuid())
+  userId      String
+  toolId      String
+  action      String
+  metadataJson Json?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+  tool        Tool     @relation(fields: [toolId], references: [id])
+}

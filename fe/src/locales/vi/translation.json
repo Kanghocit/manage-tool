@@ -1,0 +1,72 @@
+{
+  "app": {
+    "title": "Quản lý công cụ"
+  },
+  "auth": {
+    "loginSuccess": "Đăng nhập thành công.",
+    "registerSuccess": "Tạo tài khoản thành công.",
+    "signIn": "Đăng nhập",
+    "register": "Đăng ký",
+    "needAccount": "Chưa có tài khoản? Đăng ký",
+    "backToLogin": "Quay lại đăng nhập",
+    "passwordPlaceholder": "Tối thiểu 6 ký tự",
+    "statsRolesTitle": "Vai trò",
+    "statsDurationTitle": "Thời hạn",
+    "statsDurationValue": "30 ngày",
+    "statsEngineTitle": "Nền tảng",
+    "demoAccounts": "Tài khoản demo",
+    "subtitleLogin": "Quản lý tool Playwright, gói kích hoạt và tài khoản người dùng.",
+    "subtitleRegister": "Tạo tài khoản admin hoặc user cho hệ thống."
+  },
+  "menu": {
+    "overview": "Tổng quan",
+    "myTools": "Công cụ của tôi",
+    "profile": "Hồ sơ",
+    "users": "Người dùng",
+    "tools": "Công cụ",
+    "subscriptions": "Kích hoạt"
+  },
+  "common": {
+    "logout": "Đăng xuất",
+    "switchToEn": "EN",
+    "switchToVi": "VI",
+    "status": "Trạng thái",
+    "user": "Người dùng",
+    "tool": "Công cụ",
+    "description": "Mô tả",
+    "expires": "Hết hạn",
+    "period": "Thời gian",
+    "active": "Đang hoạt động",
+    "inactive": "Tạm dừng",
+    "expired": "Hết hạn",
+    "unknown": "Không xác định"
+  },
+  "fields": {
+    "fullName": "Họ và tên",
+    "role": "Vai trò",
+    "type": "Loại"
+  },
+  "roles": {
+    "admin": "Quản trị viên",
+    "user": "Người dùng"
+  },
+  "pages": {
+    "overviewSubtitle": "Số liệu nhanh về tài khoản, tool và gói kích hoạt.",
+    "activeSubscriptions": "Gói đang hoạt động",
+    "adminNotesTitle": "Ghi chú quản trị",
+    "noteSubscription": "Chỉ những gói đang còn hạn mới hiển thị trong danh sách công cụ của user.",
+    "noteLocalStorage": "Dữ liệu demo đang được lưu trong localStorage để bạn test nhanh giao diện.",
+    "noteNextStep": "Bước tiếp theo là nối frontend vào backend Express và Prisma thật.",
+    "toolManagement": "Quản lý công cụ",
+    "createTool": "Tạo công cụ",
+    "saveTool": "Lưu công cụ",
+    "toolName": "Tên công cụ",
+    "subscriptionManagement": "Quản lý kích hoạt",
+    "activateToolForUser": "Kích hoạt công cụ cho user",
+    "activateOneMonth": "Kích hoạt 1 tháng",
+    "activeRange": "Thời gian hiệu lực",
+    "myToolsSubtitle": "Danh sách công cụ còn hiệu lực theo gói của bạn.",
+    "profileTitle": "Hồ sơ",
+    "accountDetails": "Thông tin tài khoản"
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "app": {
+    "title": "Tool Admin"
+  },
+  "auth": {
+    "loginSuccess": "Login successful.",
+    "registerSuccess": "Account created.",
+    "signIn": "Sign in",
+    "register": "Register",
+    "needAccount": "Need an account? Register",
+    "backToLogin": "Back to login",
+    "passwordPlaceholder": "At least 6 characters",
+    "statsRolesTitle": "Roles",
+    "statsDurationTitle": "Duration",
+    "statsDurationValue": "30 days",
+    "statsEngineTitle": "Engine",
+    "demoAccounts": "Demo accounts",
+    "subtitleLogin": "Manage Playwright tools, subscriptions, and account access.",
+    "subtitleRegister": "Register a new admin or user account for the dashboard."
+  },
+  "menu": {
+    "overview": "Overview",
+    "myTools": "My Tools",
+    "profile": "Profile",
+    "users": "Users",
+    "tools": "Tools",
+    "subscriptions": "Subscriptions"
+  },
+  "common": {
+    "logout": "Logout",
+    "switchToEn": "EN",
+    "switchToVi": "VI",
+    "status": "Status",
+    "user": "User",
+    "tool": "Tool",
+    "description": "Description",
+    "expires": "Expires",
+    "period": "Period",
+    "active": "Active",
+    "inactive": "Inactive",
+    "expired": "Expired",
+    "unknown": "Unknown"
+  },
+  "fields": {
+    "fullName": "Full name",
+    "role": "Role",
+    "type": "Type"
+  },
+  "roles": {
+    "admin": "Admin",
+    "user": "User"
+  },
+  "pages": {
+    "overviewSubtitle": "Quick insight into accounts, tools, and activations.",
+    "activeSubscriptions": "Active subscriptions",
+    "adminNotesTitle": "Admin notes",
+    "noteSubscription": "Only active subscriptions within the current date range appear in My Tools.",
+    "noteLocalStorage": "Seeded demo data is stored in localStorage so you can test the full UI fast.",
+    "noteNextStep": "Next step is swapping mock API calls with the Express backend and Prisma.",
+    "toolManagement": "Tool management",
+    "createTool": "Create tool",
+    "saveTool": "Save tool",
+    "toolName": "Tool name",
+    "subscriptionManagement": "Subscription management",
+    "activateToolForUser": "Activate tool for user",
+    "activateOneMonth": "Activate 1 month",
+    "activeRange": "Active range",
+    "myToolsSubtitle": "Tools that are active for your current subscription.",
+    "profileTitle": "Profile",
+    "accountDetails": "Account details"
+  }
+}
