@@ -2,11 +2,9 @@ import type { ReactNode } from "react";
 
 export type MenuKey =
   | "/dashboard"
-  | "/my-tools"
+  | "/my-license"
   | "/admin/users"
-  | "/admin/tools"
-  | "/admin/subscriptions"
+  | "/admin/licenses"
   | "/profile";
 
 export type NavRoute = { path: MenuKey; name: string; icon: ReactNode };
-

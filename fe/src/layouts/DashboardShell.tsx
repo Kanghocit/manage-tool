@@ -1,11 +1,10 @@
 import { useMemo } from "react";
 import {
-  AppstoreOutlined,
   DashboardOutlined,
+  KeyOutlined,
   LogoutOutlined,
   SafetyOutlined,
   TeamOutlined,
-  ToolOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { Button } from "antd";
@@ -24,11 +23,11 @@ import type { MenuKey, NavRoute } from "../types/nav";
 import { useAuthStore } from "../store/useAuthStore";
 
 import { OverviewPage } from "../pages/dashboard/OverviewPage";
-import { MyToolsPage } from "../pages/dashboard/MyToolsPage";
+import { MyLicensePage } from "../pages/dashboard/MyLicensePage";
 import { ProfilePage } from "../pages/dashboard/ProfilePage";
-import { UsersPage } from "../pages/admin/UsersPage";
-import { ToolsPage } from "../pages/admin/ToolsPage";
-import { SubscriptionsPage } from "../pages/admin/SubscriptionsPage";
+import { AdminLicensesPage } from "../pages/admin/AdminLicensesPage";
+import { AdminLicenseCreatePage } from "../pages/admin/AdminLicenseCreatePage";
+import { AdminLicenseDetailPage } from "../pages/admin/AdminLicenseDetailPage";
 
 export function DashboardShell() {
   const location = useLocation();
@@ -44,7 +43,11 @@ export function DashboardShell() {
         icon: <DashboardOutlined />,
         name: t("menu.overview"),
       },
-      { path: "/my-tools", icon: <ToolOutlined />, name: t("menu.myTools") },
+      {
+        path: "/my-license",
+        icon: <KeyOutlined />,
+        name: t("menu.myLicense"),
+      },
       { path: "/profile", icon: <UserOutlined />, name: t("menu.profile") },
     ];
 
@@ -52,17 +55,12 @@ export function DashboardShell() {
       base.splice(
         1,
         0,
-        { path: "/admin/users", icon: <TeamOutlined />, name: t("menu.users") },
         {
-          path: "/admin/tools",
-          icon: <AppstoreOutlined />,
-          name: t("menu.tools"),
-        },
-        {
-          path: "/admin/subscriptions",
+          path: "/admin/licenses",
           icon: <SafetyOutlined />,
-          name: t("menu.subscriptions"),
+          name: t("menu.licenses"),
         },
+        { path: "/admin/users", icon: <TeamOutlined />, name: t("menu.users") },
       );
     }
 
@@ -116,29 +114,44 @@ export function DashboardShell() {
         <div className="mx-auto max-w-[1600px] p-6">
           <Routes>
             <Route path="/dashboard" element={<OverviewPage />} />
-            <Route path="/my-tools" element={<MyToolsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route
+              path="/my-license"
+              element={
+                <ProtectedRoute>
+                  <MyLicensePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/licenses/create"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <AdminLicenseCreatePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/licenses/:id"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <AdminLicenseDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/licenses"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <AdminLicensesPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/admin/users"
               element={
                 <ProtectedRoute roles={["admin"]}>
-                  <UsersPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/tools"
-              element={
-                <ProtectedRoute roles={["admin"]}>
-                  <ToolsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/subscriptions"
-              element={
-                <ProtectedRoute roles={["admin"]}>
-                  <SubscriptionsPage />
+                  <PlaceholderPage titleKey="menu.users" />
                 </ProtectedRoute>
               }
             />
@@ -146,7 +159,7 @@ export function DashboardShell() {
               path="*"
               element={
                 <Navigate
-                  to={user?.role === "admin" ? "/dashboard" : "/my-tools"}
+                  to={user?.role === "admin" ? "/dashboard" : "/my-license"}
                   replace
                 />
               }
@@ -155,5 +168,15 @@ export function DashboardShell() {
         </div>
       </div>
     </ProLayout>
+  );
+}
+
+function PlaceholderPage({ titleKey }: { titleKey: string }) {
+  const { t } = useTranslation();
+  return (
+    <div className="rounded-2xl bg-white p-8 shadow-sm">
+      <h2 className="mb-2 text-xl font-semibold">{t(titleKey)}</h2>
+      <p className="text-slate-500">{t("pages.placeholderBody")}</p>
+    </div>
   );
 }

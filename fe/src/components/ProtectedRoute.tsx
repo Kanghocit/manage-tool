@@ -19,7 +19,7 @@ export function ProtectedRoute({
   if (roles && !roles.includes(user.role)) {
     return (
       <Navigate
-        to={user.role === "admin" ? "/dashboard" : "/my-tools"}
+        to={user.role === "admin" ? "/dashboard" : "/my-license"}
         replace
       />
     );

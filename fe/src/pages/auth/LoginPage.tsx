@@ -3,7 +3,7 @@ import { LoginFormPage, ProCard, ProFormText } from "@ant-design/pro-components"
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { mockApi } from "../../lib/mock-api";
+import { api } from "../../lib/api";
 import { useAuthStore } from "../../store/useAuthStore";
 
 export function LoginPage() {
@@ -14,11 +14,15 @@ export function LoginPage() {
 
   const mutation = useMutation({
     mutationFn: (values: { email: string; password: string }) =>
-      mockApi.login(values.email, values.password),
-    onSuccess: ({ user, token }) => {
-      setSession(user, token);
+      api.post("/api/auth/login", values).then((res) => res.data),
+    onSuccess: (data: {
+      user: { id: string; email: string; fullName: string; role: "admin" | "user"; status: "active" | "blocked" };
+      accessToken: string;
+      refreshToken: string;
+    }) => {
+      setSession(data.user, data.accessToken, data.refreshToken);
       message.success(t("auth.loginSuccess"));
-      navigate(user.role === "admin" ? "/dashboard" : "/my-tools", {
+      navigate(data.user.role === "admin" ? "/dashboard" : "/my-license", {
         replace: true,
       });
     },
@@ -58,7 +62,7 @@ export function LoginPage() {
               />
             </ProCard>
             <ProCard>
-              <Statistic title={t("auth.statsEngineTitle")} value="Playwright" />
+              <Statistic title={t("auth.statsEngineTitle")} value={t("auth.statsEngineValue")} />
             </ProCard>
           </div>
         ),

@@ -1,18 +1,42 @@
+# Env files
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
 .env.development
+.env.development.local
 .env.test
+.env.test.local
 .env.production
-.fe/package-lock.json
-.be/package-lock.json
-.fe/pnpm-lock.yaml
-.be/pnpm-lock.yaml
-.fe/yarn.lock
-.be/yarn.lock
-.fe/bun.lockb
-.be/bun.lockb
-.fe/node_modules
-.be/node_modules
+.env.production.local
+
+# Node
+node_modules/
+fe/node_modules/
+be/node_modules/
+
+# Build output
+fe/dist/
+be/dist/
+
+# Lock files (giữ package-lock.json)
+fe/pnpm-lock.yaml
+be/pnpm-lock.yaml
+fe/yarn.lock
+be/yarn.lock
+fe/bun.lockb
+be/bun.lockb
+
+# Prisma
+be/prisma/migrations/dev.db*
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

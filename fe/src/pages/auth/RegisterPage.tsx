@@ -1,14 +1,10 @@
 import { App as AntApp, Button } from "antd";
-import {
-  LoginFormPage,
-  ProFormSelect,
-  ProFormText,
-} from "@ant-design/pro-components";
+import { LoginFormPage, ProFormText } from "@ant-design/pro-components";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { mockApi } from "../../lib/mock-api";
-import { useAuthStore, type Role } from "../../store/useAuthStore";
+import { api } from "../../lib/api";
+import { useAuthStore } from "../../store/useAuthStore";
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -17,16 +13,16 @@ export function RegisterPage() {
   const { t } = useTranslation();
 
   const mutation = useMutation({
-    mutationFn: (values: {
-      fullName: string;
-      email: string;
-      password: string;
-      role: Role;
-    }) => mockApi.register(values),
-    onSuccess: ({ user, token }) => {
-      setSession(user, token);
+    mutationFn: (values: { fullName: string; email: string; password: string }) =>
+      api.post("/api/auth/register", values).then((res) => res.data),
+    onSuccess: (data: {
+      user: { id: string; email: string; fullName: string; role: "admin" | "user"; status: "active" | "blocked" };
+      accessToken: string;
+      refreshToken: string;
+    }) => {
+      setSession(data.user, data.accessToken, data.refreshToken);
       message.success(t("auth.registerSuccess"));
-      navigate(user.role === "admin" ? "/dashboard" : "/my-tools", {
+      navigate(data.user.role === "admin" ? "/dashboard" : "/my-license", {
         replace: true,
       });
     },
@@ -48,7 +44,6 @@ export function RegisterPage() {
             fullName: string;
             email: string;
             password: string;
-            role: Role;
           },
         );
       }}
@@ -73,15 +68,7 @@ export function RegisterPage() {
         placeholder={t("auth.passwordPlaceholder")}
         rules={[{ required: true, min: 6 }]}
       />
-      <ProFormSelect
-        name="role"
-        initialValue="user"
-        options={[
-          { value: "user", label: t("roles.user") },
-          { value: "admin", label: t("roles.admin") },
-        ]}
-        rules={[{ required: true }]}
-      />
+      {/* role luôn là user trong phiên bản này */}
     </LoginFormPage>
   );
 }

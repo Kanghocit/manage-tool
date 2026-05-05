@@ -7,30 +7,39 @@ export type AuthUser = {
   email: string
   fullName: string
   role: Role
-  status: 'active' | 'inactive'
+  status: 'active' | 'blocked'
 }
 
 type AuthState = {
   user: AuthUser | null
-  token: string | null
-  setSession: (user: AuthUser, token: string) => void
+  accessToken: string | null
+  refreshToken: string | null
+  setSession: (user: AuthUser, accessToken: string, refreshToken: string) => void
+  setTokens: (accessToken: string, refreshToken: string) => void
   logout: () => void
   hydrate: () => void
 }
 
-const STORAGE_KEY = 'tool-admin-auth'
+const STORAGE_KEY = 'license-admin-auth'
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  token: null,
-  setSession: (user, token) => {
-    const payload = { user, token }
+  accessToken: null,
+  refreshToken: null,
+  setSession: (user, accessToken, refreshToken) => {
+    const payload = { user, accessToken, refreshToken }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
     set(payload)
   },
+  setTokens: (accessToken, refreshToken) => {
+    set((state) => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: state.user, accessToken, refreshToken }))
+      return { accessToken, refreshToken }
+    })
+  },
   logout: () => {
     localStorage.removeItem(STORAGE_KEY)
-    set({ user: null, token: null })
+    set({ user: null, accessToken: null, refreshToken: null })
   },
   hydrate: () => {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -40,7 +49,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     try {
-      const parsed = JSON.parse(raw) as { user: AuthUser; token: string }
+      const parsed = JSON.parse(raw) as { user: AuthUser; accessToken: string; refreshToken: string }
       set(parsed)
     } catch {
       localStorage.removeItem(STORAGE_KEY)
