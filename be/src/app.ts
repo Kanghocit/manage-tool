@@ -24,6 +24,8 @@ export const createApp = () => {
         return callback(new Error(`Origin ${origin} is not allowed by CORS`))
       },
       credentials: true,
+      methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
     }),
   )
   app.use(helmet())
