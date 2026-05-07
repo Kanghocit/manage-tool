@@ -66,7 +66,9 @@ export function AdminLicensesPage() {
       dataIndex: "durationDays",
       width: 120,
       render: (_, row) =>
-        row.durationDays == null ? t("adminLicenses.lifetime") : row.durationDays,
+        row.durationDays == null
+          ? t("adminLicenses.lifetime")
+          : row.durationDays,
     },
     {
       title: t("pages.expiresAt"),

@@ -35,6 +35,7 @@ model User {
   updatedAt     DateTime       @updatedAt
 
   createdLicenses   License[]            @relation("LicenseCreator")
+  deletedLicenses   License[]            @relation("LicenseDeleter")
   activatedLicenses License[]            @relation("LicenseActivator")
   activations       LicenseActivation[]
   refreshTokens     RefreshToken[]
@@ -52,8 +53,10 @@ model License {
   expiresAt         DateTime?
   maxDevices        Int           @default(1)
   notes             String?
+  deletedAt         DateTime?
 
   createdById   String?
+  deletedById   String?
   activatedById String?
   activatedAt   DateTime?
 
@@ -61,12 +64,14 @@ model License {
   updatedAt DateTime @updatedAt
 
   createdBy   User? @relation("LicenseCreator",   fields: [createdById],   references: [id])
+  deletedBy   User? @relation("LicenseDeleter",   fields: [deletedById],   references: [id])
   activatedBy User? @relation("LicenseActivator", fields: [activatedById], references: [id])
 
   activations LicenseActivation[]
 
   @@index([status])
   @@index([activatedById])
+  @@index([deletedAt])
 }
 
 model LicenseActivation {

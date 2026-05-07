@@ -1,4 +1,13 @@
-import { App as AntApp, Alert, Button, Divider, Input, Space, Tag, Typography } from "antd";
+import {
+  App as AntApp,
+  Alert,
+  Button,
+  Divider,
+  Input,
+  Space,
+  Tag,
+  Typography,
+} from "antd";
 import { PageContainer, ProCard } from "@ant-design/pro-components";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import axios from "axios";
@@ -25,7 +34,12 @@ type LicenseMeResponse =
         durationDays: number | null;
         activatedAt: string | null;
         maxDevices: number;
-        devices: { id: string; deviceId: string; deviceName?: string; lastSeenAt?: string | null }[];
+        devices: {
+          id: string;
+          deviceId: string;
+          deviceName?: string;
+          lastSeenAt?: string | null;
+        }[];
       };
     };
 
@@ -35,7 +49,9 @@ export function MyLicensePage() {
   const [searchParams] = useSearchParams();
 
   const [licenseKey, setLicenseKey] = useState("");
-  const [deviceId, setDeviceId] = useState(() => getOrCreateWebDeviceId(searchParams));
+  const [deviceId, setDeviceId] = useState(() =>
+    getOrCreateWebDeviceId(searchParams),
+  );
 
   useEffect(() => {
     const fromQuery = readDeviceIdFromSearchParams(searchParams);
@@ -49,7 +65,8 @@ export function MyLicensePage() {
 
   const meQuery = useQuery({
     queryKey: ["license-me"],
-    queryFn: async () => (await api.get<LicenseMeResponse>("/api/license/me")).data,
+    queryFn: async () =>
+      (await api.get<LicenseMeResponse>("/api/license/me")).data,
   });
 
   const activateMutation = useMutation({
@@ -67,15 +84,21 @@ export function MyLicensePage() {
       if (data.success) {
         message.success(data.message ?? "Activated");
       } else {
-        message.error(`${data.code ?? "ERROR"}: ${data.message ?? "Activate failed"}`);
+        message.error(
+          `${data.code ?? "ERROR"}: ${data.message ?? "Activate failed"}`,
+        );
       }
       await meQuery.refetch();
     },
     onError: (err: unknown) => {
       if (axios.isAxiosError(err)) {
-        const data = err.response?.data as { message?: string; code?: string } | undefined;
+        const data = err.response?.data as
+          | { message?: string; code?: string }
+          | undefined;
         if (data?.message) {
-          message.error(data.code ? `${data.code}: ${data.message}` : data.message);
+          message.error(
+            data.code ? `${data.code}: ${data.message}` : data.message,
+          );
           return;
         }
       }
@@ -89,16 +112,28 @@ export function MyLicensePage() {
         await api.post("/api/license/verify", {
           deviceId,
         })
-      ).data as { success: boolean; allowed: boolean; code?: string; message?: string },
+      ).data as {
+        success: boolean;
+        allowed: boolean;
+        code?: string;
+        message?: string;
+      },
     onSuccess: (data) => {
       if (data.allowed) message.success("allowed=true");
-      else message.warning(`${data.code ?? "DENIED"}: ${data.message ?? "allowed=false"}`);
+      else
+        message.warning(
+          `${data.code ?? "DENIED"}: ${data.message ?? "allowed=false"}`,
+        );
     },
     onError: (err: unknown) => {
       if (axios.isAxiosError(err)) {
-        const data = err.response?.data as { message?: string; code?: string } | undefined;
+        const data = err.response?.data as
+          | { message?: string; code?: string }
+          | undefined;
         if (data?.message) {
-          message.error(data.code ? `${data.code}: ${data.message}` : data.message);
+          message.error(
+            data.code ? `${data.code}: ${data.message}` : data.message,
+          );
           return;
         }
       }
@@ -119,13 +154,22 @@ export function MyLicensePage() {
   };
 
   return (
-    <PageContainer title={t("menu.myLicense")} subTitle={t("pages.myLicenseSubtitle")}>
+    <PageContainer
+      title={t("menu.myLicense")}
+      subTitle={t("pages.myLicenseSubtitle")}
+    >
       <div className="grid grid-equal-rows gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
         <ProCard bordered className="h-full" title={t("pages.activateTitle")}>
           <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-            <Alert type="info" showIcon message={t("pages.myLicenseDeviceHint")} />
+            <Alert
+              type="info"
+              showIcon
+              message={t("pages.myLicenseDeviceHint")}
+            />
             <div>
-              <Typography.Text type="secondary">{t("pages.deviceIdLabel")}</Typography.Text>
+              <Typography.Text type="secondary">
+                {t("pages.deviceIdLabel")}
+              </Typography.Text>
               <div className="mt-1">
                 <Typography.Text code copyable>
                   {deviceId}
@@ -154,14 +198,21 @@ export function MyLicensePage() {
               >
                 {t("pages.verifyButton")}
               </Button>
-              <Button onClick={() => meQuery.refetch()} loading={meQuery.isFetching}>
+              <Button
+                onClick={() => meQuery.refetch()}
+                loading={meQuery.isFetching}
+              >
                 {t("pages.refreshButton")}
               </Button>
             </Space>
           </Space>
         </ProCard>
 
-        <ProCard bordered className="h-full" title={t("pages.currentLicenseTitle")}>
+        <ProCard
+          bordered
+          className="h-full"
+          title={t("pages.currentLicenseTitle")}
+        >
           {meQuery.isLoading ? (
             <Typography.Text type="secondary">Loading...</Typography.Text>
           ) : meQuery.data?.license ? (
@@ -171,30 +222,46 @@ export function MyLicensePage() {
                 {statusTag(meQuery.data.license.status)}
               </div>
               <div className="flex items-center gap-2">
-                <Typography.Text strong>{t("pages.maxDevices")}:</Typography.Text>
-                <Typography.Text>{meQuery.data.license.maxDevices}</Typography.Text>
+                <Typography.Text strong>
+                  {t("pages.maxDevices")}:
+                </Typography.Text>
+                <Typography.Text>
+                  {meQuery.data.license.maxDevices}
+                </Typography.Text>
               </div>
               <div className="flex items-center gap-2">
-                <Typography.Text strong>{t("pages.expiresAt")}:</Typography.Text>
+                <Typography.Text strong>
+                  {t("pages.expiresAt")}:
+                </Typography.Text>
                 <Typography.Text>
                   {meQuery.data.license.expiresAt
-                    ? dayjs(meQuery.data.license.expiresAt).format("YYYY-MM-DD HH:mm")
+                    ? dayjs(meQuery.data.license.expiresAt).format(
+                        "YYYY-MM-DD HH:mm",
+                      )
                     : t("adminLicenses.lifetime")}
                 </Typography.Text>
               </div>
               {meQuery.data.license.activatedAt ? (
                 <div className="flex flex-wrap items-center gap-2">
-                  <Typography.Text strong>{t("pages.activatedAtLabel")}:</Typography.Text>
+                  <Typography.Text strong>
+                    {t("pages.activatedAtLabel")}:
+                  </Typography.Text>
                   <Typography.Text>
-                    {dayjs(meQuery.data.license.activatedAt).format("YYYY-MM-DD HH:mm")}
+                    {dayjs(meQuery.data.license.activatedAt).format(
+                      "YYYY-MM-DD HH:mm",
+                    )}
                   </Typography.Text>
                 </div>
               ) : null}
               {meQuery.data.license.durationDays != null ? (
                 <div className="flex flex-wrap items-center gap-2">
-                  <Typography.Text strong>{t("pages.durationDaysLabel")}:</Typography.Text>
+                  <Typography.Text strong>
+                    {t("pages.durationDaysLabel")}:
+                  </Typography.Text>
                   <Typography.Text>
-                    {t("pages.durationDaysValue", { count: meQuery.data.license.durationDays })}
+                    {t("pages.durationDaysValue", {
+                      count: meQuery.data.license.durationDays,
+                    })}
                   </Typography.Text>
                 </div>
               ) : null}
@@ -202,7 +269,9 @@ export function MyLicensePage() {
                 {t("pages.licenseValidityExplain")}
               </Typography.Paragraph>
               <Divider />
-              <Typography.Text strong>{t("pages.devicesTitle")}</Typography.Text>
+              <Typography.Text strong>
+                {t("pages.devicesTitle")}
+              </Typography.Text>
               <div className="space-y-2">
                 {meQuery.data.license.devices.length === 0 ? (
                   <Typography.Text type="secondary">-</Typography.Text>
@@ -222,10 +291,14 @@ export function MyLicensePage() {
                         </Typography.Text>
                         <Space size="small">
                           {d.deviceId === deviceId ? (
-                            <Tag color="blue">{t("pages.thisBrowserDevice")}</Tag>
+                            <Tag color="blue">
+                              {t("pages.thisBrowserDevice")}
+                            </Tag>
                           ) : null}
                           {d.deviceName ? (
-                            <Typography.Text type="secondary">{d.deviceName}</Typography.Text>
+                            <Typography.Text type="secondary">
+                              {d.deviceName}
+                            </Typography.Text>
                           ) : null}
                         </Space>
                       </div>
@@ -238,11 +311,12 @@ export function MyLicensePage() {
               </div>
             </div>
           ) : (
-            <Typography.Text type="secondary">{t("pages.noLicenseYet")}</Typography.Text>
+            <Typography.Text type="secondary">
+              {t("pages.noLicenseYet")}
+            </Typography.Text>
           )}
         </ProCard>
       </div>
     </PageContainer>
   );
 }
-

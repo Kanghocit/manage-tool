@@ -28,6 +28,7 @@ import { ProfilePage } from "../pages/dashboard/ProfilePage";
 import { AdminLicensesPage } from "../pages/admin/AdminLicensesPage";
 import { AdminLicenseCreatePage } from "../pages/admin/AdminLicenseCreatePage";
 import { AdminLicenseDetailPage } from "../pages/admin/AdminLicenseDetailPage";
+import { AdminUsersPage } from "../pages/admin/AdminUsersPage";
 
 export function DashboardShell() {
   const location = useLocation();
@@ -151,7 +152,7 @@ export function DashboardShell() {
               path="/admin/users"
               element={
                 <ProtectedRoute roles={["admin"]}>
-                  <PlaceholderPage titleKey="menu.users" />
+                  <AdminUsersPage />
                 </ProtectedRoute>
               }
             />
@@ -168,15 +169,5 @@ export function DashboardShell() {
         </div>
       </div>
     </ProLayout>
-  );
-}
-
-function PlaceholderPage({ titleKey }: { titleKey: string }) {
-  const { t } = useTranslation();
-  return (
-    <div className="rounded-2xl bg-white p-8 shadow-sm">
-      <h2 className="mb-2 text-xl font-semibold">{t(titleKey)}</h2>
-      <p className="text-slate-500">{t("pages.placeholderBody")}</p>
-    </div>
   );
 }

@@ -10,6 +10,7 @@ import { authRouter } from './routes/auth'
 import { licenseRouter } from './routes/license'
 import { adminLicensesRouter } from './routes/adminLicenses'
 import { adminDashboardRouter } from './routes/adminDashboard'
+import { adminUsersRouter } from './routes/adminUsers'
 
 export const createApp = () => {
   const app = express()
@@ -71,6 +72,16 @@ export const createApp = () => {
       legacyHeaders: false,
     }),
     adminDashboardRouter,
+  )
+  app.use(
+    '/api/admin/users',
+    rateLimit({
+      windowMs: 60 * 1000,
+      limit: 120,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+    adminUsersRouter,
   )
 
   app.use((req, res) => {

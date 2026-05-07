@@ -54,8 +54,11 @@ export function AdminLicenseDetailPage() {
     queryKey: ["admin-license", id],
     enabled: Boolean(id),
     queryFn: async () =>
-      (await api.get<{ success: boolean; license: LicenseDetail }>(`/api/admin/licenses/${id}`))
-        .data.license,
+      (
+        await api.get<{ success: boolean; license: LicenseDetail }>(
+          `/api/admin/licenses/${id}`,
+        )
+      ).data.license,
   });
 
   const invalidate = () => {
@@ -81,7 +84,8 @@ export function AdminLicenseDetailPage() {
   });
 
   const extendMut = useMutation({
-    mutationFn: () => api.patch(`/api/admin/licenses/${id}/extend`, { extraDays }),
+    mutationFn: () =>
+      api.patch(`/api/admin/licenses/${id}/extend`, { extraDays }),
     onSuccess: () => {
       message.success(t("adminLicenses.extended"));
       setExtendOpen(false);
@@ -96,6 +100,15 @@ export function AdminLicenseDetailPage() {
     onSuccess: () => {
       message.success(t("adminLicenses.deviceRevoked"));
       invalidate();
+    },
+    onError: (e: Error) => message.error(e.message),
+  });
+  const deleteMut = useMutation({
+    mutationFn: () => api.delete(`/api/admin/licenses/${id}`),
+    onSuccess: () => {
+      message.success(t("adminLicenses.deleted"));
+      void queryClient.invalidateQueries({ queryKey: ["admin-licenses"] });
+      navigate("/admin/licenses");
     },
     onError: (e: Error) => message.error(e.message),
   });
@@ -117,7 +130,17 @@ export function AdminLicenseDetailPage() {
       extra={
         lic ? (
           <Space wrap>
-            <Button onClick={() => setExtendOpen(true)}>{t("adminLicenses.extend")}</Button>
+            <Button onClick={() => setExtendOpen(true)}>
+              {t("adminLicenses.extend")}
+            </Button>
+            <Popconfirm
+              title={t("adminLicenses.confirmDelete")}
+              onConfirm={() => deleteMut.mutate()}
+            >
+              <Button danger loading={deleteMut.isPending}>
+                {t("adminLicenses.delete")}
+              </Button>
+            </Popconfirm>
             {lic.status !== "blocked" ? (
               <Popconfirm
                 title={t("adminLicenses.confirmBlock")}
@@ -143,7 +166,12 @@ export function AdminLicenseDetailPage() {
     >
       {lic ? (
         <>
-          <Descriptions bordered column={1} size="small" className="mb-4 bg-white">
+          <Descriptions
+            bordered
+            column={1}
+            size="small"
+            className="mb-4 bg-white"
+          >
             <Descriptions.Item label={t("adminLicenses.fullKey")}>
               {lic.licenseKey ? (
                 <Typography.Text code copyable>
@@ -165,16 +193,22 @@ export function AdminLicenseDetailPage() {
               {lic.maxDevices}
             </Descriptions.Item>
             <Descriptions.Item label={t("adminLicenses.durationDays")}>
-              {lic.durationDays == null ? t("adminLicenses.lifetime") : lic.durationDays}
+              {lic.durationDays == null
+                ? t("adminLicenses.lifetime")
+                : lic.durationDays}
             </Descriptions.Item>
             <Descriptions.Item label={t("pages.expiresAt")}>
-              {lic.expiresAt ? dayjs(lic.expiresAt).format("YYYY-MM-DD HH:mm") : "-"}
+              {lic.expiresAt
+                ? dayjs(lic.expiresAt).format("YYYY-MM-DD HH:mm")
+                : "-"}
             </Descriptions.Item>
             <Descriptions.Item label={t("adminLicenses.activatedBy")}>
               {lic.activatedBy?.email ?? "-"}
             </Descriptions.Item>
             <Descriptions.Item label={t("adminLicenses.activatedAt")}>
-              {lic.activatedAt ? dayjs(lic.activatedAt).format("YYYY-MM-DD HH:mm") : "-"}
+              {lic.activatedAt
+                ? dayjs(lic.activatedAt).format("YYYY-MM-DD HH:mm")
+                : "-"}
             </Descriptions.Item>
             {lic.notes ? (
               <Descriptions.Item label={t("adminLicenses.notes")}>
@@ -198,7 +232,10 @@ export function AdminLicenseDetailPage() {
                     <span className="font-mono text-xs">{v}</span>
                   ),
                 },
-                { title: t("adminLicenses.deviceName"), dataIndex: "deviceName" },
+                {
+                  title: t("adminLicenses.deviceName"),
+                  dataIndex: "deviceName",
+                },
                 { title: "IP", dataIndex: "lastIp" },
                 {
                   title: t("adminLicenses.activatedAt"),
@@ -228,7 +265,12 @@ export function AdminLicenseDetailPage() {
                         title={t("adminLicenses.confirmRevoke")}
                         onConfirm={() => revokeMut.mutate(row.id)}
                       >
-                        <Button type="link" danger size="small" loading={revokeMut.isPending}>
+                        <Button
+                          type="link"
+                          danger
+                          size="small"
+                          loading={revokeMut.isPending}
+                        >
                           {t("adminLicenses.revoke")}
                         </Button>
                       </Popconfirm>
@@ -247,7 +289,9 @@ export function AdminLicenseDetailPage() {
         onOk={() => extendMut.mutate()}
         confirmLoading={extendMut.isPending}
       >
-        <div className="mb-2 text-sm text-slate-600">{t("adminLicenses.extraDays")}</div>
+        <div className="mb-2 text-sm text-slate-600">
+          {t("adminLicenses.extraDays")}
+        </div>
         <InputNumber
           min={1}
           max={3650}

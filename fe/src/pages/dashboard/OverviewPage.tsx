@@ -20,13 +20,14 @@ import { useAuthStore } from "../../store/useAuthStore";
 type AdminDashboardRes = {
   success: boolean;
   stats: {
-    users: { total: number; active: number };
+    users: { total: number; active: number; blocked: number };
     licenses: {
       total: number;
       unused: number;
       active: number;
       expired: number;
       blocked: number;
+      deleted: number;
     };
     activationsActive: number;
   };
@@ -145,7 +146,7 @@ export function OverviewPage() {
                 value={s.users.total}
                 suffix={
                   <span className="text-sm font-normal text-slate-500">
-                    ({s.users.active} {t("pages.dashboardActiveUsers")})
+                    ({s.users.active} {t("pages.dashboardActiveUsers")}, {s.users.blocked} {t("pages.dashboardBlockedUsers")})
                   </span>
                 }
                 prefix={<TeamOutlined />}
@@ -193,6 +194,13 @@ export function OverviewPage() {
               <Statistic
                 title={t("pages.dashboardBlocked")}
                 value={s.licenses.blocked}
+                prefix={<BlockOutlined />}
+              />
+            </ProCard>
+            <ProCard bordered className="h-full">
+              <Statistic
+                title={t("pages.dashboardDeletedLicenses")}
+                value={s.licenses.deleted}
                 prefix={<BlockOutlined />}
               />
             </ProCard>
