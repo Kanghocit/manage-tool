@@ -22,13 +22,11 @@ licenseRouter.post("/activate", requireAuth, async (req, res, next) => {
   try {
     const parsed = activateSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          code: "INVALID_PAYLOAD",
-          message: "Invalid activate payload.",
-        });
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_PAYLOAD",
+        message: "Invalid activate payload.",
+      });
     }
 
     const { userId } = req.auth!;
@@ -38,22 +36,18 @@ licenseRouter.post("/activate", requireAuth, async (req, res, next) => {
       where: { licenseKeyHash: keyHash, deletedAt: null },
     });
     if (!license) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          code: "LICENSE_NOT_FOUND",
-          message: "License not found.",
-        });
+      return res.status(404).json({
+        success: false,
+        code: "LICENSE_NOT_FOUND",
+        message: "License not found.",
+      });
     }
     if (license.status === "blocked") {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          code: "LICENSE_BLOCKED",
-          message: "License is blocked.",
-        });
+      return res.status(403).json({
+        success: false,
+        code: "LICENSE_BLOCKED",
+        message: "License is blocked.",
+      });
     }
     if (license.expiresAt && license.expiresAt.getTime() <= Date.now()) {
       if (license.status !== "expired") {
@@ -62,13 +56,11 @@ licenseRouter.post("/activate", requireAuth, async (req, res, next) => {
           data: { status: "expired" },
         });
       }
-      return res
-        .status(403)
-        .json({
-          success: false,
-          code: "LICENSE_EXPIRED",
-          message: "License is expired.",
-        });
+      return res.status(403).json({
+        success: false,
+        code: "LICENSE_EXPIRED",
+        message: "License is expired.",
+      });
     }
 
     // if active but belongs to another user
@@ -100,13 +92,11 @@ licenseRouter.post("/activate", requireAuth, async (req, res, next) => {
       });
     }
     if (existingActivation?.revokedAt) {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          code: "DEVICE_REVOKED",
-          message: "Device is revoked.",
-        });
+      return res.status(403).json({
+        success: false,
+        code: "DEVICE_REVOKED",
+        message: "Device is revoked.",
+      });
     }
 
     // device limit check
@@ -176,13 +166,11 @@ licenseRouter.post("/verify", requireAuth, async (req, res, next) => {
   try {
     const parsed = verifySchema.safeParse(req.body);
     if (!parsed.success) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          code: "INVALID_PAYLOAD",
-          message: "Invalid verify payload.",
-        });
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_PAYLOAD",
+        message: "Invalid verify payload.",
+      });
     }
 
     const { userId } = req.auth!;
