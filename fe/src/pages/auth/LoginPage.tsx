@@ -1,14 +1,4 @@
-import {
-  App as AntApp,
-  Button,
-  Form,
-  Input,
-  Space,
-  Statistic,
-  Tag,
-  Typography,
-} from "antd";
-import { ProCard } from "@ant-design/pro-components";
+import { App as AntApp, Button, Form, Input, Typography } from "antd";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
