@@ -389,7 +389,7 @@ adminLicensesRouter.delete("/:id", async (req, res, next) => {
     const actorId = req.auth!.userId;
 
     const lic = await prisma.license.findUnique({ where: { id } });
-    if (!lic || lic.deletedAt) {
+    if (!lic) {
       return res
         .status(404)
         .json({
