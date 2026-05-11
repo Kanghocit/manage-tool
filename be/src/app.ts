@@ -11,6 +11,9 @@ import { licenseRouter } from './routes/license'
 import { adminLicensesRouter } from './routes/adminLicenses'
 import { adminDashboardRouter } from './routes/adminDashboard'
 import { adminUsersRouter } from './routes/adminUsers'
+import { purchasesRouter } from './routes/purchases'
+import { adminPurchasesRouter } from './routes/adminPurchases'
+import { sepayWebhookRouter } from './routes/sepayWebhook'
 
 export const createApp = () => {
   const app = express()
@@ -43,6 +46,19 @@ export const createApp = () => {
   })
 
   app.use('/api/auth', authRouter)
+  /** SePay dashboard: full URL e.g. https://ankhang.name.vn/hooks/sepay-payments */
+  app.use(
+    '/hooks/sepay-payments',
+    rateLimit({
+      windowMs: 60 * 1000,
+      limit: 120,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+    sepayWebhookRouter,
+  )
+  /** @deprecated use /hooks/sepay-payments */
+  app.use('/api/webhooks/sepay', sepayWebhookRouter)
   app.use(
     '/api/license',
     rateLimit({
@@ -74,6 +90,11 @@ export const createApp = () => {
     adminDashboardRouter,
   )
   app.use(
+    '/api/admin/purchases',
+    rateLimit({ windowMs: 60 * 1000, limit: 120, standardHeaders: true, legacyHeaders: false }),
+    adminPurchasesRouter,
+  )
+  app.use(
     '/api/admin/users',
     rateLimit({
       windowMs: 60 * 1000,
@@ -82,6 +103,16 @@ export const createApp = () => {
       legacyHeaders: false,
     }),
     adminUsersRouter,
+  )
+  app.use(
+    '/api/purchases',
+    rateLimit({
+      windowMs: 60 * 1000,
+      limit: 300,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+    purchasesRouter,
   )
 
   app.use((req, res) => {

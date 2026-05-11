@@ -1,22 +1,58 @@
-import { App as AntApp, Button, Space, Statistic, Tag } from "antd";
-import { LoginFormPage, ProCard, ProFormText } from "@ant-design/pro-components";
+import {
+  App as AntApp,
+  Button,
+  Form,
+  Input,
+  Space,
+  Statistic,
+  Tag,
+  Typography,
+} from "antd";
+import { ProCard } from "@ant-design/pro-components";
 import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
+import { getOrCreateDeviceId } from "../../lib/deviceId";
 import { useAuthStore } from "../../store/useAuthStore";
+import { AuthShell } from "./AuthShell";
+
+function authErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const msg = err.response?.data?.message;
+    if (typeof msg === "string") return msg;
+    const code = err.response?.data?.code;
+    if (code === "DEVICE_MISMATCH")
+      return err.response?.data?.message ?? "Device mismatch.";
+  }
+  if (err instanceof Error) return err.message;
+  return "Request failed.";
+}
 
 export function LoginPage() {
   const navigate = useNavigate();
   const { message } = AntApp.useApp();
   const setSession = useAuthStore((state) => state.setSession);
   const { t } = useTranslation();
+  const [form] = Form.useForm<{ email: string; password: string }>();
 
   const mutation = useMutation({
     mutationFn: (values: { email: string; password: string }) =>
-      api.post("/api/auth/login", values).then((res) => res.data),
+      api
+        .post("/api/auth/login", {
+          ...values,
+          deviceId: getOrCreateDeviceId(),
+        })
+        .then((res) => res.data),
     onSuccess: (data: {
-      user: { id: string; email: string; fullName: string; role: "admin" | "user"; status: "active" | "blocked" };
+      user: {
+        id: string;
+        email: string;
+        fullName: string;
+        role: "admin" | "user";
+        status: "active" | "blocked";
+      };
       accessToken: string;
       refreshToken: string;
     }) => {
@@ -26,66 +62,90 @@ export function LoginPage() {
         replace: true,
       });
     },
-    onError: (error: Error) => message.error(error.message),
+    onError: (error: unknown) => {
+      const code = axios.isAxiosError(error)
+        ? error.response?.data?.code
+        : undefined;
+      if (code === "DEVICE_MISMATCH") {
+        message.error(t("auth.deviceMismatch"));
+      } else {
+        message.error(authErrorMessage(error));
+      }
+    },
   });
 
+  const aside = (
+    <div className="space-y-6">
+      <div>
+        <Typography.Title level={2} className="!mb-2 !text-slate-900">
+          {t("auth.sayHi")}
+        </Typography.Title>
+        <Typography.Paragraph type="secondary" className="!mb-4">
+          {t("auth.subtitleLogin")}
+        </Typography.Paragraph>
+      </div>
+    </div>
+  );
+
   return (
-    <LoginFormPage
-      title={t("app.title")}
-      subTitle={t("auth.subtitleLogin")}
-      backgroundImageUrl="https://gw.alipayobjects.com/zos/rmsportal/FfdJeJRQWjEeGTpqgBKj.png"
-      submitter={{
-        searchConfig: { submitText: t("auth.signIn") },
-        submitButtonProps: { loading: mutation.isPending },
-      }}
-      onFinish={async (values) => {
-        mutation.mutate(values as { email: string; password: string });
-      }}
-      activityConfig={{
-        style: { boxShadow: "none", width: "100%" },
-        title: t("auth.demoAccounts"),
-        subTitle: (
-          <Space wrap>
-            <Tag color="processing">admin@example.com / Admin@123</Tag>
-            <Tag color="purple">user@example.com / User@123</Tag>
-          </Space>
-        ),
-        action: (
-          <div className="grid gap-4 md:grid-cols-3">
-            <ProCard>
-              <Statistic title={t("auth.statsRolesTitle")} value="Admin / User" />
-            </ProCard>
-            <ProCard>
-              <Statistic
-                title={t("auth.statsDurationTitle")}
-                value={t("auth.statsDurationValue")}
-              />
-            </ProCard>
-            <ProCard>
-              <Statistic title={t("auth.statsEngineTitle")} value={t("auth.statsEngineValue")} />
-            </ProCard>
-          </div>
-        ),
-      }}
-      actions={
-        <Button type="link" onClick={() => navigate("/register")}>
-          {t("auth.needAccount")}
-        </Button>
-      }
-    >
-      <ProFormText
-        name="email"
-        fieldProps={{ size: "large" }}
-        placeholder="admin@example.com"
-        rules={[{ required: true, type: "email" }]}
-      />
-      <ProFormText.Password
-        name="password"
-        fieldProps={{ size: "large" }}
-        placeholder="Admin@123"
-        rules={[{ required: true }]}
-      />
-    </LoginFormPage>
+    <AuthShell aside={aside}>
+      <div className="w-full rounded-2xl border border-slate-200/80 bg-white/95 p-8 shadow-xl shadow-slate-200/60 backdrop-blur-sm">
+        <Typography.Title level={3} className="mb-1 text-slate-900">
+          {t("app.title")}
+        </Typography.Title>
+        <Typography.Paragraph type="secondary" className="mb-4">
+          {t("auth.subtitleLogin")}
+        </Typography.Paragraph>
+
+        <Form
+          form={form}
+          layout="vertical"
+          requiredMark={false}
+          size="large"
+          onFinish={(values) => mutation.mutate(values)}
+        >
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[
+              {
+                required: true,
+                type: "email",
+                message: t("auth.emailRequired"),
+              },
+            ]}
+          >
+            <Input placeholder="admin@example.com" autoComplete="email" />
+          </Form.Item>
+          <Form.Item
+            name="password"
+            label={t("auth.passwordLabel")}
+            rules={[{ required: true, message: t("auth.passwordRequired") }]}
+          >
+            <Input.Password
+              placeholder="••••••••"
+              autoComplete="current-password"
+            />
+          </Form.Item>
+          <Form.Item className="mb-3">
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              loading={mutation.isPending}
+              size="large"
+            >
+              {t("auth.signIn")}
+            </Button>
+          </Form.Item>
+        </Form>
+
+        <div className="text-center">
+          <Button type="link" onClick={() => navigate("/register")}>
+            {t("auth.needAccount")}
+          </Button>
+        </div>
+      </div>
+    </AuthShell>
   );
 }
-

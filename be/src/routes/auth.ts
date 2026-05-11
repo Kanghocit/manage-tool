@@ -9,15 +9,19 @@ import { parseDurationToMs } from '../utils/duration'
 import { sha256Hex } from '../utils/crypto'
 import rateLimit from 'express-rate-limit'
 
+const deviceIdSchema = z.string().min(8).max(128)
+
 const loginSchema = z.object({
   email: z.email(),
   password: z.string().min(6),
+  deviceId: deviceIdSchema,
 })
 
 const registerSchema = z.object({
   fullName: z.string().min(2),
   email: z.email(),
   password: z.string().min(6),
+  deviceId: deviceIdSchema,
 })
 
 const refreshSchema = z.object({
@@ -70,6 +74,21 @@ authRouter.post('/login', async (req, res, next) => {
       return res.status(401).json({ success: false, code: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' })
     }
 
+    if (user.role === 'user') {
+      if (!user.registeredDeviceId) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { registeredDeviceId: parsed.data.deviceId },
+        })
+      } else if (user.registeredDeviceId !== parsed.data.deviceId) {
+        return res.status(403).json({
+          success: false,
+          code: 'DEVICE_MISMATCH',
+          message: 'This account is bound to another device.',
+        })
+      }
+    }
+
     const accessToken = signAccessToken({ sub: user.id, role: user.role })
     const refreshToken = signRefreshToken({ sub: user.id, role: user.role })
 
@@ -117,6 +136,7 @@ authRouter.post('/register', async (req, res, next) => {
         fullName: parsed.data.fullName,
         role: 'user',
         status: 'active',
+        registeredDeviceId: parsed.data.deviceId,
       },
     })
 

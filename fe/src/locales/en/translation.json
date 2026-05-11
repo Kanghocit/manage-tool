@@ -15,9 +15,14 @@
     "statsDurationValue": "30 days",
     "statsEngineTitle": "Target",
     "statsEngineValue": "Chrome Extension",
-    "demoAccounts": "Demo accounts",
+    "sayHi": "Welcome to the Zalo License Management Website. ",
     "subtitleLogin": "Manage license keys, devices, and user accounts.",
-    "subtitleRegister": "Register a new account for the license admin system."
+    "subtitleRegister": "Register a new account for the license admin system.",
+    "deviceMismatch": "This account is registered to another device. Please use the original device or contact support.",
+    "emailRequired": "Please enter a valid email.",
+    "passwordLabel": "Password",
+    "passwordRequired": "Please enter your password.",
+    "fullNameRequired": "Please enter your full name."
   },
   "menu": {
     "overview": "Overview",
@@ -31,6 +36,8 @@
     "logout": "Logout",
     "switchToEn": "EN",
     "switchToVi": "VI",
+    "langVi": "Vietnamese",
+    "langEn": "English",
     "status": "Status",
     "user": "User",
     "description": "Description",
@@ -39,7 +46,9 @@
     "active": "Active",
     "inactive": "Inactive",
     "expired": "Expired",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "close": "Close",
+    "copy": "Copy"
   },
   "fields": {
     "fullName": "Full name",
@@ -109,7 +118,6 @@
   },
   "pages": {
     "overviewSubtitle": "Live counts from your database.",
-    "overviewUserSubtitle": "Your license at a glance.",
     "dashboardUsers": "Users",
     "dashboardActiveUsers": "active",
     "dashboardBlockedUsers": "blocked",
@@ -147,6 +155,67 @@
     "licenseValidityExplain": "Expiry is counted from your first activation of this key, not from when the admin created it. Until someone activates the key, the period does not run.",
     "devicesTitle": "Devices",
     "thisBrowserDevice": "This browser",
-    "noLicenseYet": "You don't have a license yet."
+    "noLicenseYet": "You don't have a license yet.",
+    "purchaseError": "Could not start purchase. Please try again.",
+    "purchaseOpened": "Payment instructions are ready. Transfer the exact amount with the memo shown below.",
+    "pendingOrderBannerTitle": "You have an unpaid order",
+    "pendingOrderBannerDesc": "Amount: {{amount}} — transfer memo: {{content}}. Finish this payment or cancel it to start a new order.",
+    "viewOrder": "View order",
+    "cancelOrder": "Cancel order",
+    "orderCancelled": "Order cancelled. You can now start a new purchase.",
+    "orderCancelFailed": "Could not cancel the order. Please try again.",
+    "orderExpired": "This order has expired. Please close and buy again.",
+    "pkg1dAlreadyPurchased": "The 1-day trial package can only be purchased once per account.",
+    "pendingOrderReused": "You already have a payment in progress. Use the same QR and transfer memo until it is confirmed — do not start a second transfer for a new order.",
+    "orderStatusPending": "Pending payment",
+    "orderStatusPaid": "Paid",
+    "packageDuration": "{{count}} months",
+    "packageDurationDays": "{{count}} day(s)",
+    "perMonthApprox": "~{{amount}} / month",
+    "perDayApprox": "~{{amount}} / day",
+    "purchaseTitle": "License plans",
+    "purchaseSubtitle": "Pick a plan and pay via bank transfer. After SePay confirms your transfer, an unused license key is created automatically.",
+    "rowDuration": "Duration",
+    "rowTotal": "Total (VND)",
+    "rowPerMonth": "Per month (VND)",
+    "rowAdvantages": "Highlights",
+    "buy": "Buy",
+    "purchaseModalTitle": "Bank transfer",
+    "transferContent": "Transfer description (copy exactly)",
+    "amount": "Amount",
+    "bankAccount": "Receiving account",
+    "qrCaption": "Scan VietQR to pay",
+    "qrUnavailable": "No QR image URL from the server. Set SEPAY_QR_BANK (+ account), or VIETQR_* for VietQR.io, or SEPAY_CHECKOUT_QR_URL for a static image.",
+    "refreshStatus": "Refresh status",
+    "purchasePending": "Waiting for payment confirmation…",
+    "purchasePaid": "Payment received. Open My License to activate your new key.",
+    "purchasedUnusedTitle": "Paid — new license key",
+    "purchasedUnusedHint": "Preview: {{preview}}. Open My License, paste the full key from your payment confirmation email or admin, then Activate.",
+    "yourLicenseSection": "Your current license",
+    "pkg1d": {
+      "a1": "Try it out for a day",
+      "a2": "1 calendar day on the license after activation",
+      "a3": "Only 10,000 VND"
+    },
+    "pkg3m": {
+      "a1": "Good for short-term needs",
+      "a2": "Save on cost",
+      "a3": "Quick to get started"
+    },
+    "pkg6m": {
+      "a1": "Stable value over time",
+      "a2": "Better monthly rate",
+      "a3": "Easier to manage renewals"
+    },
+    "pkg12m": {
+      "a1": "Strong overall value",
+      "a2": "Longer runway",
+      "a3": "Sustainable growth"
+    },
+    "pkg24m": {
+      "a1": "Maximum savings",
+      "a2": "Best monthly rate",
+      "a3": "Long-term partnership"
+    }
   }
 }

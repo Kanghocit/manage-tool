@@ -7,7 +7,7 @@ import {
   TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { Button } from "antd";
+import { Button, Space, Tooltip } from "antd";
 import { ProLayout } from "@ant-design/pro-components";
 import {
   Route,
@@ -49,7 +49,6 @@ export function DashboardShell() {
         icon: <KeyOutlined />,
         name: t("menu.myLicense"),
       },
-      { path: "/profile", icon: <UserOutlined />, name: t("menu.profile") },
     ];
 
     if (user?.role === "admin") {
@@ -73,29 +72,77 @@ export function DashboardShell() {
       title={t("app.title")}
       location={{ pathname: location.pathname }}
       route={{ routes }}
-      avatarProps={{ title: user?.fullName, icon: <UserOutlined /> }}
-      actionsRender={() => [
-        <Button
-          key="logout"
-          icon={<LogoutOutlined />}
-          onClick={() => {
-            logout();
-            navigate("/login", { replace: true });
-          }}
-        >
-          {t("common.logout")}
-        </Button>,
-        <Button
-          key="lang"
-          onClick={() =>
-            i18n.changeLanguage(i18n.language === "vi" ? "en" : "vi")
-          }
-        >
-          {i18n.language === "vi"
-            ? t("common.switchToEn")
-            : t("common.switchToVi")}
-        </Button>,
-      ]}
+      avatarProps={{
+        title: (
+          <span>
+            {user?.fullName}
+            <span className="text-slate-400"> </span>
+          </span>
+        ),
+        icon: <UserOutlined />,
+
+        render: (_props, defaultDom) => (
+          <div
+            role="button"
+            tabIndex={0}
+            className="flex cursor-pointer items-center"
+            onClick={() => navigate("/profile")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                navigate("/profile");
+              }
+            }}
+          >
+            {defaultDom}
+          </div>
+        ),
+      }}
+      actionsRender={() => {
+        const lang = i18n.resolvedLanguage || i18n.language;
+        return (
+          <Space size={4}>
+            <Tooltip title={t("common.langVi")}>
+              <Button
+                type={lang.startsWith("vi") ? "primary" : "default"}
+                size="small"
+                aria-label={t("common.langVi")}
+                onClick={() => i18n.changeLanguage("vi")}
+                className="min-w-10 px-2 text-base leading-none"
+              >
+                🇻🇳
+              </Button>
+            </Tooltip>
+            <Tooltip title={t("common.langEn")}>
+              <Button
+                type={lang.startsWith("en") ? "primary" : "default"}
+                size="small"
+                aria-label={t("common.langEn")}
+                onClick={() => i18n.changeLanguage("en")}
+                className="min-w-10 px-2 text-base leading-none"
+              >
+                🇬🇧
+              </Button>
+            </Tooltip>
+          </Space>
+        );
+      }}
+      menuFooterRender={() => (
+        <div className="border-t border-slate-200 px-2 py-3">
+          <Button
+            block
+            type="text"
+            danger
+            icon={<LogoutOutlined />}
+            onClick={() => {
+              logout();
+              navigate("/login", { replace: true });
+            }}
+          >
+            {t("common.logout")}
+          </Button>
+        </div>
+      )}
       menuItemRender={(item, dom) => (
         <a
           onClick={(event) => {

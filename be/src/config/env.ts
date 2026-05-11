@@ -30,4 +30,30 @@ export const env = {
     .filter(Boolean),
 
   allowRegister: (process.env.ALLOW_REGISTER ?? 'false').toLowerCase() === 'true',
+
+  /** VietQR image (img.vietqr.io) — bank code e.g. MB, VCB */
+  vietQr: {
+    bankCode: process.env.VIETQR_BANK_CODE ?? '',
+    accountNo: process.env.VIETQR_ACCOUNT_NO ?? '',
+    accountName: process.env.VIETQR_ACCOUNT_NAME ?? '',
+  },
+
+  /** SePay webhook: Authorization: Apikey <value> */
+  sepayWebhookApiKey: process.env.SEPAY_WEBHOOK_API_KEY ?? '',
+
+  /**
+   * Optional: static QR image URL from SePay / bank (e.g. merchant QR in SePay dashboard).
+   * Used when dynamic QR URLs are not set. Amount + memo must still match the order in the app.
+   */
+  sepayCheckoutQrUrl: process.env.SEPAY_CHECKOUT_QR_URL ?? '',
+
+  /**
+   * Dynamic QR via SePay: https://qr.sepay.vn/img?acc=&bank=&amount=&des=
+   * `acc` defaults to VIETQR_ACCOUNT_NO if SEPAY_QR_ACC is empty.
+   */
+  sepayQr: {
+    acc: process.env.SEPAY_QR_ACC ?? '',
+    bank: process.env.SEPAY_QR_BANK ?? '',
+    template: process.env.SEPAY_QR_TEMPLATE ?? '',
+  },
 }

@@ -24,15 +24,23 @@ enum LicenseStatus {
   blocked
 }
 
+enum PurchaseOrderStatus {
+  pending
+  paid
+  failed
+  expired
+}
+
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  passwordHash  String
-  fullName      String
-  role          RoleName       @default(user)
-  status        UserStatus     @default(active)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id                   String           @id @default(uuid())
+  email                String           @unique
+  passwordHash         String
+  fullName             String
+  role                 RoleName         @default(user)
+  status               UserStatus       @default(active)
+  registeredDeviceId   String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   createdLicenses   License[]            @relation("LicenseCreator")
   deletedLicenses   License[]            @relation("LicenseDeleter")
@@ -40,6 +48,27 @@ model User {
   activations       LicenseActivation[]
   refreshTokens     RefreshToken[]
   auditLogs         AuditLog[]           @relation("AuditActor")
+  purchaseOrders    PurchaseOrder[]
+}
+
+model PurchaseOrder {
+  id                   String               @id @default(uuid())
+  userId               String
+  packageCode          String
+  amountVnd            Int
+  transferContent      String               @unique
+  status               PurchaseOrderStatus  @default(pending)
+  sepayTransactionId   Int?                 @unique
+  fulfilledLicenseId   String?              @unique
+  webhookPayload       Json?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fulfilledLicense License? @relation("PurchaseFulfilledLicense", fields: [fulfilledLicenseId], references: [id])
+
+  @@index([userId])
+  @@index([status])
 }
 
 model License {
@@ -67,7 +96,8 @@ model License {
   deletedBy   User? @relation("LicenseDeleter",   fields: [deletedById],   references: [id])
   activatedBy User? @relation("LicenseActivator", fields: [activatedById], references: [id])
 
-  activations LicenseActivation[]
+  activations        LicenseActivation[]
+  fulfilledFromOrder PurchaseOrder? @relation("PurchaseFulfilledLicense")
 
   @@index([status])
   @@index([activatedById])

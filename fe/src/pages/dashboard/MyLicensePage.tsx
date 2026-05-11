@@ -23,25 +23,29 @@ import {
   readDeviceIdFromSearchParams,
 } from "../../lib/deviceId";
 
-type LicenseMeResponse =
-  | { success: true; license: null }
-  | {
-      success: true;
-      license: {
-        id: string;
-        status: "unused" | "active" | "expired" | "blocked";
-        expiresAt: string | null;
-        durationDays: number | null;
-        activatedAt: string | null;
-        maxDevices: number;
-        devices: {
-          id: string;
-          deviceId: string;
-          deviceName?: string;
-          lastSeenAt?: string | null;
-        }[];
-      };
-    };
+type LicenseMeResponse = {
+  success: true;
+  license: null | {
+    id: string;
+    status: "unused" | "active" | "expired" | "blocked";
+    expiresAt: string | null;
+    durationDays: number | null;
+    activatedAt: string | null;
+    maxDevices: number;
+    devices: {
+      id: string;
+      deviceId: string;
+      deviceName?: string;
+      lastSeenAt?: string | null;
+    }[];
+  };
+  purchasedUnusedLicense?: {
+    id: string;
+    licenseKeyPreview: string;
+    durationDays: number | null;
+    purchaseOrderId: string | null;
+  } | null;
+};
 
 export function MyLicensePage() {
   const { t } = useTranslation();
@@ -56,7 +60,7 @@ export function MyLicensePage() {
   useEffect(() => {
     const fromQuery = readDeviceIdFromSearchParams(searchParams);
     if (!fromQuery) return;
-    setDeviceId((prev) => {
+    setDeviceId((prev: string) => {
       if (fromQuery === prev) return prev;
       localStorage.setItem(WEB_DEVICE_ID_STORAGE_KEY, fromQuery);
       return fromQuery;
@@ -158,6 +162,17 @@ export function MyLicensePage() {
       title={t("menu.myLicense")}
       subTitle={t("pages.myLicenseSubtitle")}
     >
+      {meQuery.data?.purchasedUnusedLicense ? (
+        <Alert
+          type="success"
+          showIcon
+          className="mb-4"
+          message={t("pages.purchasedUnusedTitle")}
+          description={t("pages.purchasedUnusedHint", {
+            preview: meQuery.data.purchasedUnusedLicense.licenseKeyPreview,
+          })}
+        />
+      ) : null}
       <div className="grid grid-equal-rows gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
         <ProCard bordered className="h-full" title={t("pages.activateTitle")}>
           <Space direction="vertical" size="middle" style={{ width: "100%" }}>

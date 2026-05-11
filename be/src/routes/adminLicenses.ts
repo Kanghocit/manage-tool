@@ -4,11 +4,8 @@ import type { LicenseStatus, Prisma } from "@prisma/client";
 
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
-import {
-  generateLicenseKey,
-  licenseKeyHash,
-  licenseKeyPreview,
-} from "../utils/licenseKey";
+import { createUnusedLicense } from "../lib/createUnusedLicense";
+import { licenseKeyPreview } from "../utils/licenseKey";
 
 const admin = [requireAuth, requireRole("admin")];
 
@@ -88,37 +85,14 @@ adminLicensesRouter.post("/", async (req, res, next) => {
 
     await prisma.$transaction(async (tx) => {
       for (let i = 0; i < quantity; i += 1) {
-        let plain = generateLicenseKey();
-        let hash = licenseKeyHash(plain);
-        let tries = 0;
-        while (tries < 20) {
-          const exists = await tx.license.findUnique({
-            where: { licenseKeyHash: hash },
-          });
-          if (!exists) break;
-          plain = generateLicenseKey();
-          hash = licenseKeyHash(plain);
-          tries += 1;
-        }
-        if (tries >= 20) {
-          throw new Error("Could not generate unique license key");
-        }
-
-        await tx.license.create({
-          data: {
-            licenseKeyHash: hash,
-            licenseKeyPlain: plain,
-            licenseKeyPreview: licenseKeyPreview(plain),
-            status: "unused",
-            durationDays: durationDays ?? null,
-            maxDevices,
-            notes: notes ?? null,
-            createdById: actorId,
-          },
+        const license = await createUnusedLicense(tx, {
+          durationDays: durationDays ?? null,
+          maxDevices,
+          notes: notes ?? null,
+          createdById: actorId,
         });
-
         created.push({
-          licenseKey: plain,
+          licenseKey: license.licenseKeyPlain ?? "",
           durationDays: durationDays ?? null,
           maxDevices,
         });

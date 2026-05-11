@@ -1,23 +1,51 @@
-/** Same key as extension docs: one browser profile = one device slot for the web app. */
-export const WEB_DEVICE_ID_STORAGE_KEY = "deviceId";
+const STORAGE_KEY = "license-admin-device-id";
 
-export function readDeviceIdFromSearchParams(searchParams: URLSearchParams): string | null {
-  const raw = searchParams.get("deviceId") ?? searchParams.get("device_id");
-  const trimmed = raw?.trim();
-  return trimmed && trimmed.length >= 4 ? trimmed : null;
+/** Same key as login/register; My License + extension sync may use ?deviceId= */
+export const WEB_DEVICE_ID_STORAGE_KEY = STORAGE_KEY;
+
+function isValidStoredId(id: string | null | undefined): id is string {
+  return !!id && id.trim().length >= 8;
 }
 
-/** Persist immediately so refresh before Activate does not rotate the UUID. */
+export function readDeviceIdFromSearchParams(
+  searchParams: URLSearchParams,
+): string | null {
+  const raw = searchParams.get("deviceId")?.trim();
+  if (!isValidStoredId(raw)) return null;
+  return raw!;
+}
+
+/**
+ * Prefer `?deviceId=` from URL (e.g. extension handoff), else localStorage UUID.
+ */
 export function getOrCreateWebDeviceId(searchParams: URLSearchParams): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
   const fromQuery = readDeviceIdFromSearchParams(searchParams);
   if (fromQuery) {
-    localStorage.setItem(WEB_DEVICE_ID_STORAGE_KEY, fromQuery);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, fromQuery);
+    } catch {
+      /* ignore quota / private mode */
+    }
     return fromQuery;
   }
-  let id = localStorage.getItem(WEB_DEVICE_ID_STORAGE_KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(WEB_DEVICE_ID_STORAGE_KEY, id);
+  return getOrCreateDeviceId();
+}
+
+export function getOrCreateDeviceId(): string {
+  if (typeof window === "undefined") {
+    return "";
   }
-  return id;
+  try {
+    let id = window.localStorage.getItem(STORAGE_KEY);
+    if (!isValidStoredId(id)) {
+      id = crypto.randomUUID();
+      window.localStorage.setItem(STORAGE_KEY, id);
+    }
+    return id!;
+  } catch {
+    return crypto.randomUUID();
+  }
 }

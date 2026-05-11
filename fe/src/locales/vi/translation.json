@@ -15,9 +15,14 @@
     "statsDurationValue": "30 ngày",
     "statsEngineTitle": "Phục vụ",
     "statsEngineValue": "Chrome Extension",
-    "demoAccounts": "Tài khoản demo",
+    "sayHi": "Chào mừng bạn đến với web quản lý zalo license",
     "subtitleLogin": "Quản lý license key, thiết bị và tài khoản người dùng.",
-    "subtitleRegister": "Tạo tài khoản mới cho hệ thống quản lý license."
+    "subtitleRegister": "Tạo tài khoản mới cho hệ thống quản lý license.",
+    "deviceMismatch": "Tài khoản này đã gắn với thiết bị khác. Vui lòng đăng nhập trên thiết bị ban đầu hoặc liên hệ hỗ trợ.",
+    "emailRequired": "Vui lòng nhập email hợp lệ.",
+    "passwordLabel": "Mật khẩu",
+    "passwordRequired": "Vui lòng nhập mật khẩu.",
+    "fullNameRequired": "Vui lòng nhập họ và tên."
   },
   "menu": {
     "overview": "Tổng quan",
@@ -31,6 +36,8 @@
     "logout": "Đăng xuất",
     "switchToEn": "EN",
     "switchToVi": "VI",
+    "langVi": "Tiếng Việt",
+    "langEn": "Tiếng Anh",
     "status": "Trạng thái",
     "user": "Người dùng",
     "description": "Mô tả",
@@ -39,7 +46,9 @@
     "active": "Đang hoạt động",
     "inactive": "Tạm dừng",
     "expired": "Hết hạn",
-    "unknown": "Không xác định"
+    "unknown": "Không xác định",
+    "close": "Đóng",
+    "copy": "Sao chép"
   },
   "fields": {
     "fullName": "Họ và tên",
@@ -109,7 +118,6 @@
   },
   "pages": {
     "overviewSubtitle": "Số liệu thật từ database.",
-    "overviewUserSubtitle": "License của bạn tóm tắt nhanh.",
     "dashboardUsers": "Người dùng",
     "dashboardActiveUsers": "đang hoạt động",
     "dashboardBlockedUsers": "bị khóa",
@@ -147,6 +155,66 @@
     "licenseValidityExplain": "Ngày hết hạn được tính từ lần đầu bạn kích hoạt key này, không phải từ lúc admin tạo key. Chưa kích hoạt thì thời hạn chưa chạy.",
     "devicesTitle": "Thiết bị",
     "thisBrowserDevice": "Trình duyệt này",
-    "noLicenseYet": "Bạn chưa có license."
+    "noLicenseYet": "Bạn chưa có license.",
+    "purchaseOpened": "Đã tạo hướng dẫn thanh toán. Chuyển đúng số tiền và nội dung bên dưới.",
+    "pendingOrderBannerTitle": "Bạn có đơn chưa thanh toán",
+    "pendingOrderBannerDesc": "Số tiền: {{amount}} — nội dung CK: {{content}}. Hoàn tất thanh toán hoặc huỷ đơn để tạo mới.",
+    "viewOrder": "Xem đơn",
+    "cancelOrder": "Huỷ đơn",
+    "orderCancelled": "Đã huỷ đơn. Bạn có thể tạo đơn mới.",
+    "orderCancelFailed": "Không thể huỷ đơn. Vui lòng thử lại.",
+    "orderExpired": "Đơn đã hết hạn. Vui lòng đóng và mua lại.",
+    "pkg1dAlreadyPurchased": "Gói 1 ngày chỉ được mua một lần mỗi tài khoản.",
+    "pendingOrderReused": "Bạn đang có một giao dịch chờ thanh toán. Hãy dùng cùng mã QR và nội dung CK cho đến khi xác nhận — tránh tạo đơn mới rồi chuyển tiền hai lần.",
+    "orderStatusPending": "Đang chờ thanh toán",
+    "orderStatusPaid": "Đã thanh toán",
+    "packageDuration": "{{count}} tháng",
+    "packageDurationDays": "{{count}} ngày",
+    "perMonthApprox": "~{{amount}} / tháng",
+    "perDayApprox": "~{{amount}} / ngày",
+    "purchaseTitle": "Gói license",
+    "purchaseSubtitle": "Chọn gói và chuyển khoản. Sau khi SePay xác nhận, hệ thống tự tạo license (chưa kích hoạt) cho bạn.",
+    "rowDuration": "Thời hạn",
+    "rowTotal": "Tổng giá (VNĐ)",
+    "rowPerMonth": "Chi phí / tháng (VNĐ)",
+    "rowAdvantages": "Ưu điểm",
+    "buy": "Mua",
+    "purchaseModalTitle": "Thanh toán chuyển khoản",
+    "transferContent": "Nội dung CK (copy chính xác)",
+    "amount": "Số tiền",
+    "bankAccount": "Tài khoản nhận",
+    "qrCaption": "Quét mã VietQR để thanh toán",
+    "qrUnavailable": "Chưa có URL ảnh QR từ server. Cấu hình SEPAY_QR_BANK (+ số TK), hoặc VIETQR_* cho VietQR.io, hoặc SEPAY_CHECKOUT_QR_URL cho ảnh tĩnh.",
+    "refreshStatus": "Cập nhật trạng thái",
+    "purchasePending": "Đang chờ xác nhận thanh toán…",
+    "purchasePaid": "Đã nhận thanh toán. Vào License của tôi để kích hoạt key mới.",
+    "purchasedUnusedTitle": "Đã thanh toán — license mới",
+    "purchasedUnusedHint": "Xem trước: {{preview}}. Vào License của tôi, dán đủ key (email/admin), rồi bấm Kích hoạt.",
+    "yourLicenseSection": "License hiện tại của bạn",
+    "pkg1d": {
+      "a1": "Gói trải nghiệm ngắn hạn",
+      "a2": "License hiệu lực 1 ngày (sau khi kích hoạt)",
+      "a3": "Chỉ 10.000đ"
+    },
+    "pkg3m": {
+      "a1": "Phù hợp nhu cầu ngắn hạn",
+      "a2": "Tiết kiệm chi phí",
+      "a3": "Triển khai nhanh"
+    },
+    "pkg6m": {
+      "a1": "Hiệu quả ổn định",
+      "a2": "Tối ưu chi phí theo tháng",
+      "a3": "Dễ quản lý gia hạn"
+    },
+    "pkg12m": {
+      "a1": "Chi phí hợp lý",
+      "a2": "Thời gian sử dụng dài",
+      "a3": "Tăng trưởng bền vững"
+    },
+    "pkg24m": {
+      "a1": "Tiết kiệm tối đa",
+      "a2": "Giá mỗi tháng thấp nhất",
+      "a3": "Đồng hành dài hạn"
+    }
   }
 }
