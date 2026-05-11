@@ -61,7 +61,7 @@ export function resolvePurchaseQrImageUrl(
 
 async function uniqueTransferContent(): Promise<string> {
   for (let i = 0; i < 12; i += 1) {
-    const token = `LIC${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
+    const token = `DH${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
     const clash = await prisma.purchaseOrder.findUnique({
       where: { transferContent: token },
       select: { id: true },
