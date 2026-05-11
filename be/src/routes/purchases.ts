@@ -92,16 +92,6 @@ purchasesRouter.use(requireAuth);
 
 purchasesRouter.post("/", async (req, res, next) => {
   try {
-    if (req.auth!.role !== "user") {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          code: "FORBIDDEN",
-          message: "Only user accounts can purchase.",
-        });
-    }
-
     const parsed = createBodySchema.safeParse(req.body);
     if (!parsed.success) {
       return res
@@ -124,10 +114,12 @@ purchasesRouter.post("/", async (req, res, next) => {
         });
     }
 
-    // Admin-only packages cannot be purchased by regular users.
-    // (role is already narrowed to 'user' above, so this guard is for future-proofing)
-    if (pkg.adminOnly) {
+    // adminOnly packages → only admins; regular packages → only users.
+    if (pkg.adminOnly && req.auth!.role === 'user') {
       return res.status(403).json({ success: false, code: 'ADMIN_ONLY_PACKAGE', message: 'This package is not available for purchase.' })
+    }
+    if (!pkg.adminOnly && req.auth!.role !== 'user') {
+      return res.status(403).json({ success: false, code: 'USER_ONLY_PACKAGE', message: 'Regular packages are for user accounts only.' })
     }
 
     // One-time limit: PKG_1D can only be purchased once per account.

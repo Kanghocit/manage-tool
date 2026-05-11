@@ -532,6 +532,215 @@ function UserOverviewSection() {
   );
 }
 
+function AdminTestPurchaseSection() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const { message } = AntApp.useApp();
+
+  const [payModalOpen, setPayModalOpen] = useState(false);
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+
+  const orderQuery = useQuery({
+    queryKey: ["purchase-order", activeOrderId],
+    enabled: payModalOpen && !!activeOrderId,
+    queryFn: async () => {
+      const res = await api.get<{ success: boolean; order: PurchaseOrderDto }>(
+        `/api/purchases/${activeOrderId}`,
+      );
+      return res.data.order;
+    },
+    staleTime: 0,
+    refetchInterval: (query) =>
+      query.state.data?.status === "pending" ? 5000 : false,
+  });
+
+  const cancelOrderMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      await api.delete(`/api/purchases/${orderId}`);
+    },
+    onSuccess: () => {
+      setPayModalOpen(false);
+      setActiveOrderId(null);
+      message.success(t("pages.orderCancelled"));
+    },
+    onError: () => message.error(t("pages.orderCancelFailed")),
+  });
+
+  const purchaseMutation = useMutation({
+    mutationFn: async (packageCode: PackageCode) => {
+      const res = await api.post<{ success: boolean; order: PurchaseOrderDto }>(
+        "/api/purchases",
+        { packageCode },
+      );
+      return res.data.order;
+    },
+    onSuccess: (order) => {
+      setActiveOrderId(order.id);
+      setPayModalOpen(true);
+      queryClient.setQueryData(["purchase-order", order.id], order);
+      message.success(t("pages.purchaseOpened"));
+    },
+    onError: (err: unknown) => {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        const data = err.response.data as { order?: PurchaseOrderDto };
+        if (data.order) {
+          setActiveOrderId(data.order.id);
+          setPayModalOpen(true);
+          queryClient.setQueryData(["purchase-order", data.order.id], data.order);
+          message.warning(t("pages.pendingOrderReused"));
+          return;
+        }
+      }
+      const msg = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
+      message.error(typeof msg === "string" ? msg : t("common.loading"));
+    },
+  });
+
+  const order = orderQuery.data;
+  const adminPackages = LICENSE_PACKAGES_UI.filter((p) => p.adminOnly);
+  const modalSecondsLeft = useOrderCountdown(
+    order?.status === "pending" ? order.createdAt : undefined,
+  );
+
+  useEffect(() => {
+    if (modalSecondsLeft === 0) {
+      void orderQuery.refetch();
+    }
+  }, [modalSecondsLeft, orderQuery]);
+
+  return (
+    <>
+      <ProCard
+        bordered
+        title={
+          <span className="flex items-center gap-2">
+            <ShoppingCartOutlined />
+            {t("pages.adminTestPurchaseTitle")}
+          </span>
+        }
+        className="mt-4!"
+      >
+        <p className="mb-4 text-sm text-slate-500">
+          {t("pages.adminTestPurchaseHint")}
+        </p>
+        <div className="flex flex-wrap gap-3">
+          {adminPackages.map((pkg) => (
+            <Button
+              key={pkg.code}
+              icon={<span>{pkg.icon}</span>}
+              loading={purchaseMutation.isPending}
+              onClick={() => purchaseMutation.mutate(pkg.code)}
+            >
+              {pkg.period.unit === "month"
+                ? t("pages.packageDuration", { count: pkg.period.months })
+                : t("pages.packageDurationDays", { count: pkg.period.days })}{" "}
+              — {formatVnd(pkg.amountVnd)} ₫
+            </Button>
+          ))}
+        </div>
+      </ProCard>
+
+      <Modal
+        title={
+          <span>
+            {t("pages.purchaseModalTitle")}
+            {order?.status === "pending" &&
+            modalSecondsLeft !== null &&
+            modalSecondsLeft > 0 ? (
+              <span className="ml-2 font-mono text-sm text-orange-500">
+                {formatCountdown(modalSecondsLeft)}
+              </span>
+            ) : null}
+          </span>
+        }
+        open={payModalOpen}
+        onCancel={() => {
+          setPayModalOpen(false);
+          setActiveOrderId(null);
+        }}
+        footer={[
+          <Button key="close" onClick={() => setPayModalOpen(false)}>
+            {t("common.close")}
+          </Button>,
+          order?.status === "pending" ? (
+            <Button
+              key="cancel"
+              danger
+              loading={cancelOrderMutation.isPending}
+              onClick={() => {
+                if (activeOrderId) cancelOrderMutation.mutate(activeOrderId);
+              }}
+            >
+              {t("pages.cancelOrder")}
+            </Button>
+          ) : null,
+          <Button key="refresh" onClick={() => void orderQuery.refetch()}>
+            {t("pages.refreshStatus")}
+          </Button>,
+        ]}
+        width={520}
+        destroyOnClose
+      >
+        {!order ? (
+          <span className="text-slate-500">{t("common.loading")}</span>
+        ) : (
+          <div className="space-y-4">
+            <Tag color={order.status === "paid" ? "green" : "orange"}>
+              {order.status === "paid"
+                ? t("pages.orderStatusPaid")
+                : t("pages.orderStatusPending")}
+            </Tag>
+            {order.status === "paid" ? (
+              <Typography.Paragraph type="success" className="!mb-0">
+                {t("pages.purchasePaid")}
+              </Typography.Paragraph>
+            ) : modalSecondsLeft === 0 ? (
+              <Alert type="error" showIcon message={t("pages.orderExpired")} />
+            ) : (
+              <Typography.Paragraph type="secondary" className="!mb-0">
+                {t("pages.purchasePending")}
+                {modalSecondsLeft !== null ? (
+                  <span className="ml-1 font-mono text-orange-500">
+                    ({formatCountdown(modalSecondsLeft)})
+                  </span>
+                ) : null}
+              </Typography.Paragraph>
+            )}
+            <div>
+              <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                {t("pages.transferContent")}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <code className="rounded bg-slate-100 px-2 py-1 text-sm">
+                  {order.transferContent}
+                </code>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(order.transferContent);
+                    message.success(t("adminLicenses.copied"));
+                  }}
+                >
+                  {t("adminLicenses.copied")}
+                </Button>
+              </div>
+            </div>
+            {order.qrImageUrl ? (
+              <div className="text-center">
+                <img
+                  src={order.qrImageUrl}
+                  alt="QR"
+                  className="mx-auto max-h-56 rounded-lg border border-slate-200"
+                />
+              </div>
+            ) : null}
+          </div>
+        )}
+      </Modal>
+    </>
+  );
+}
+
 export function OverviewPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -648,6 +857,8 @@ export function OverviewPage() {
           </div>
         </>
       )}
+
+      <AdminTestPurchaseSection />
 
       <ProCard bordered title={t("pages.adminNotesTitle")} className="mt-4!">
         <ul className="list-disc space-y-2 pl-5 text-slate-600">
