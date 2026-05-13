@@ -18,7 +18,7 @@ const deviceIdSchema = z.string().min(8).max(128);
 const loginSchema = z.object({
   email: z.email(),
   password: z.string().min(6),
-  // deviceId: deviceIdSchema,
+  deviceId: deviceIdSchema,
 });
 
 const registerSchema = z.object({
@@ -103,20 +103,20 @@ authRouter.post("/login", async (req, res, next) => {
       });
     }
 
-    // if (user.role === 'user') {
-    //   if (!user.registeredDeviceId) {
-    //     await prisma.user.update({
-    //       where: { id: user.id },
-    //       data: { registeredDeviceId: parsed.data.deviceId },
-    //     })
-    //   } else if (user.registeredDeviceId !== parsed.data.deviceId) {
-    //     return res.status(403).json({
-    //       success: false,
-    //       code: 'DEVICE_MISMATCH',
-    //       message: 'This account is bound to another device.',
-    //     })
-    //   }
-    // }
+    if (user.role === 'user') {
+      if (!user.registeredDeviceId) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { registeredDeviceId: parsed.data.deviceId },
+        })
+      } else if (user.registeredDeviceId !== parsed.data.deviceId) {
+        return res.status(403).json({
+          success: false,
+          code: 'DEVICE_MISMATCH',
+          message: 'This account is bound to another device.',
+        })
+      }
+    }
 
     const accessToken = signAccessToken({ sub: user.id, role: user.role });
     const refreshToken = signRefreshToken({ sub: user.id, role: user.role });
@@ -181,7 +181,7 @@ authRouter.post("/register", async (req, res, next) => {
         fullName: parsed.data.fullName,
         role: "user",
         status: "active",
-        // registeredDeviceId: parsed.data.deviceId,
+        registeredDeviceId: parsed.data.deviceId,
       },
     });
 

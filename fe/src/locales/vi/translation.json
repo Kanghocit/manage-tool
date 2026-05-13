@@ -114,7 +114,13 @@
     "confirmBlock": "Khóa người dùng này?",
     "confirmUnblock": "Mở khóa người dùng này?",
     "cannotBlockSelf": "Bạn không thể tự khóa tài khoản.",
-    "blockedStatus": "Bị khóa"
+    "blockedStatus": "Bị khóa",
+    "device": "Thiết bị",
+    "deviceBound": "Đã gắn",
+    "deviceNone": "Chưa gắn",
+    "resetDevice": "Gỡ thiết bị",
+    "confirmResetDevice": "Gỡ thiết bị khỏi tài khoản này? Lần đăng nhập tiếp theo sẽ gắn máy mới.",
+    "deviceReset": "Đã gỡ thiết bị. Tài khoản có thể đăng nhập trên máy khác."
   },
   "pages": {
     "overviewSubtitle": "Số liệu thật từ database.",

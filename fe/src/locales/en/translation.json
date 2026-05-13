@@ -114,7 +114,13 @@
     "confirmBlock": "Block this user?",
     "confirmUnblock": "Unblock this user?",
     "cannotBlockSelf": "You cannot block yourself.",
-    "blockedStatus": "Blocked"
+    "blockedStatus": "Blocked",
+    "device": "Device",
+    "deviceBound": "Bound",
+    "deviceNone": "None",
+    "resetDevice": "Reset device",
+    "confirmResetDevice": "Remove the bound device from this account? The next login will register a new device.",
+    "deviceReset": "Device unbound. The account can now log in from another device."
   },
   "pages": {
     "overviewSubtitle": "Live counts from your database.",

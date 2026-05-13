@@ -90,6 +90,7 @@ adminUsersRouter.get('/', async (req, res, next) => {
           role: true,
           status: true,
           createdAt: true,
+          registeredDeviceId: true,
         },
       }),
       prisma.user.count({ where }),
@@ -134,6 +135,40 @@ adminUsersRouter.patch('/:id/block', async (req, res, next) => {
     await audit(actorId, 'admin.user.block', 'user', id, { previousStatus: user.status, newStatus: 'blocked' })
 
     return res.json({ success: true, message: 'User blocked.' })
+  } catch (err) {
+    next(err)
+  }
+})
+
+adminUsersRouter.patch('/:id/reset-device', async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const actorId = req.auth!.userId
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, registeredDeviceId: true },
+    })
+    if (!user) {
+      return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'User not found.' })
+    }
+    if (!user.registeredDeviceId) {
+      return res.status(400).json({ success: false, code: 'NO_DEVICE_BOUND', message: 'This account has no registered device.' })
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id }, data: { registeredDeviceId: null } })
+      await tx.refreshToken.updateMany({
+        where: { userId: id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      })
+    })
+
+    await audit(actorId, 'admin.user.reset_device', 'user', id, {
+      previousDeviceId: user.registeredDeviceId,
+    })
+
+    return res.json({ success: true, message: 'Device unbound.' })
   } catch (err) {
     next(err)
   }
