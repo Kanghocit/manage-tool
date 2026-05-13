@@ -18,6 +18,7 @@ import { adminUsersRouter } from './routes/adminUsers'
 import { purchasesRouter } from './routes/purchases'
 import { adminPurchasesRouter } from './routes/adminPurchases'
 import { sepayWebhookRouter } from './routes/sepayWebhook'
+import { privacyRouter } from './routes/privacy'
 
 export const createApp = () => {
   const app = express();
@@ -118,6 +119,7 @@ export const createApp = () => {
     }),
     purchasesRouter,
   )
+  app.use('/', privacyRouter)
 
   app.use((req, res) => {
     res

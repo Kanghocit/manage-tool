@@ -2,13 +2,28 @@ import express from 'express'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
-const policyPath = path.resolve(__dirname, '..', 'content', 'privacy-policy.vi.md')
+const policyPathCandidates = [
+  path.resolve(process.cwd(), 'src', 'content', 'privacy-policy.vi.md'),
+  path.resolve(__dirname, '..', 'content', 'privacy-policy.vi.md'),
+]
+
+async function readPrivacyPolicy(): Promise<string> {
+  let lastError: unknown
+  for (const policyPath of policyPathCandidates) {
+    try {
+      return await readFile(policyPath, 'utf8')
+    } catch (err) {
+      lastError = err
+    }
+  }
+  throw lastError
+}
 
 export const privacyRouter = express.Router()
 
 privacyRouter.get('/privacy', async (_req, res, next) => {
   try {
-    const markdown = await readFile(policyPath, 'utf8')
+    const markdown = await readPrivacyPolicy()
     const { marked } = await import('marked')
     marked.setOptions({
       gfm: true,
