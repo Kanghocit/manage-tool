@@ -126,7 +126,20 @@ function UserOverviewSection() {
 
   const userLicenseQuery = useQuery({
     queryKey: ["license-me-overview"],
-    queryFn: async () => (await api.get<LicenseMeRes>("/api/license/me")).data,
+    queryFn: async (): Promise<LicenseMeRes> => {
+      try {
+        return (await api.get<LicenseMeRes>("/api/license/me")).data;
+      } catch (e) {
+        if (
+          axios.isAxiosError(e) &&
+          e.response?.status === 404 &&
+          (e.response.data as { code?: string })?.code === "NO_LICENSE"
+        ) {
+          return { success: true, license: null, purchasedUnusedLicense: null };
+        }
+        throw e;
+      }
+    },
     refetchOnWindowFocus: true,
   });
 

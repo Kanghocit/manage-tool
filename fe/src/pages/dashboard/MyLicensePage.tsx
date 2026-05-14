@@ -69,8 +69,20 @@ export function MyLicensePage() {
 
   const meQuery = useQuery({
     queryKey: ["license-me"],
-    queryFn: async () =>
-      (await api.get<LicenseMeResponse>("/api/license/me")).data,
+    queryFn: async (): Promise<LicenseMeResponse> => {
+      try {
+        return (await api.get<LicenseMeResponse>("/api/license/me")).data;
+      } catch (e) {
+        if (
+          axios.isAxiosError(e) &&
+          e.response?.status === 404 &&
+          (e.response.data as { code?: string })?.code === "NO_LICENSE"
+        ) {
+          return { success: true, license: null, purchasedUnusedLicense: null };
+        }
+        throw e;
+      }
+    },
   });
 
   const activateMutation = useMutation({

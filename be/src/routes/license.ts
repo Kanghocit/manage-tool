@@ -267,6 +267,7 @@ licenseRouter.get("/me", requireAuth, async (req, res, next) => {
             id: true,
             deviceId: true,
             deviceName: true,
+            activatedAt: true,
             lastSeenAt: true,
           },
         },
@@ -311,29 +312,50 @@ licenseRouter.get("/me", requireAuth, async (req, res, next) => {
     }
 
     if (!license) {
+      if (req.auth!.role === 'user' && !purchasedUnusedLicense) {
+        return res.status(404).json({
+          success: false,
+          code: 'NO_LICENSE',
+          message: 'Bạn chưa có license. Vui lòng mua hoặc nhập license key để tiếp tục.',
+        });
+      }
       return res.json({
         success: true,
         license: null,
+        devices: [],
         purchasedUnusedLicense,
       });
     }
+
+    const expired = !!license.expiresAt && license.expiresAt.getTime() <= Date.now();
+    const blocked = license.status === "blocked";
+    const active = license.status === "active" && !blocked && !expired;
+    const devices = license.activations.map((d) => ({
+      id: d.id,
+      deviceId: d.deviceId,
+      deviceName: d.deviceName,
+      status: "active",
+      activatedAt: d.activatedAt,
+      lastSeenAt: d.lastSeenAt,
+    }));
 
     return res.json({
       success: true,
       license: {
         id: license.id,
+        licenseKey: license.licenseKeyPreview,
         status: license.status,
+        active,
+        blocked,
+        expired,
+        userId: license.activatedById,
         expiresAt: license.expiresAt,
         durationDays: license.durationDays,
         activatedAt: license.activatedAt,
         maxDevices: license.maxDevices,
-        devices: license.activations.map((d) => ({
-          id: d.id,
-          deviceId: d.deviceId,
-          deviceName: d.deviceName,
-          lastSeenAt: d.lastSeenAt,
-        })),
+        devices,
       },
+      devices,
       purchasedUnusedLicense,
     });
   } catch (err) {
