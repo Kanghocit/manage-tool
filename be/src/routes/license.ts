@@ -176,36 +176,55 @@ licenseRouter.post("/verify", requireAuth, async (req, res, next) => {
     const { userId } = req.auth!;
 
     const license = await prisma.license.findFirst({
-      where: { activatedById: userId, status: "active", deletedAt: null },
+      where: { activatedById: userId, deletedAt: null },
       orderBy: { activatedAt: "desc" },
     });
 
     if (!license) {
-      return res.json({
-        success: true,
+      return res.status(403).json({
+        success: false,
         allowed: false,
+        valid: false,
+        status: "inactive",
         code: "LICENSE_NOT_FOUND",
         message: "No active license.",
       });
     }
     if (license.status === "blocked") {
-      return res.json({
-        success: true,
+      return res.status(403).json({
+        success: false,
         allowed: false,
+        valid: false,
+        status: "blocked",
         code: "LICENSE_BLOCKED",
         message: "License is blocked.",
       });
     }
-    if (license.expiresAt && license.expiresAt.getTime() <= Date.now()) {
+    if (
+      license.status === "expired" ||
+      (license.expiresAt && license.expiresAt.getTime() <= Date.now())
+    ) {
       await prisma.license.update({
         where: { id: license.id },
         data: { status: "expired" },
       });
-      return res.json({
-        success: true,
+      return res.status(403).json({
+        success: false,
         allowed: false,
+        valid: false,
+        status: "expired",
         code: "LICENSE_EXPIRED",
         message: "License is expired.",
+      });
+    }
+    if (license.status !== "active") {
+      return res.status(403).json({
+        success: false,
+        allowed: false,
+        valid: false,
+        status: "inactive",
+        code: "LICENSE_INACTIVE",
+        message: "License is not active.",
       });
     }
 
@@ -218,17 +237,21 @@ licenseRouter.post("/verify", requireAuth, async (req, res, next) => {
       },
     });
     if (!activation) {
-      return res.json({
-        success: true,
+      return res.status(403).json({
+        success: false,
         allowed: false,
+        valid: false,
+        status: "forbidden",
         code: "DEVICE_LIMIT_REACHED",
         message: "Device not activated.",
       });
     }
     if (activation.revokedAt) {
-      return res.json({
-        success: true,
+      return res.status(403).json({
+        success: false,
         allowed: false,
+        valid: false,
+        status: "blocked",
         code: "DEVICE_REVOKED",
         message: "Device revoked.",
       });
@@ -242,6 +265,7 @@ licenseRouter.post("/verify", requireAuth, async (req, res, next) => {
     return res.json({
       success: true,
       allowed: true,
+      valid: true,
       license: {
         status: license.status,
         expiresAt: license.expiresAt,
