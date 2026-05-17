@@ -89,12 +89,15 @@ export function MyLicensePage() {
   });
 
   const purchasedUnused = meQuery.data?.purchasedUnusedLicense;
-  const isFullLicenseKey = (key: string | null | undefined) =>
+  const isFullLicenseKey = (
+    key: string | null | undefined,
+  ): key is string =>
     !!key && !key.includes("*");
 
   useEffect(() => {
-    if (isFullLicenseKey(purchasedUnused?.licenseKey)) {
-      setLicenseKey(purchasedUnused.licenseKey);
+    const key = purchasedUnused?.licenseKey;
+    if (isFullLicenseKey(key)) {
+      setLicenseKey(key);
     }
   }, [purchasedUnused?.licenseKey, purchasedUnused?.id]);
 
