@@ -1,26 +1,85 @@
-import { Button, Tag } from "antd";
+import { Button, List, Pagination, Spin, Tag } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { PageContainer, ProTable } from "@ant-design/pro-components";
 import type { ProColumns } from "@ant-design/pro-components";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import dayjs from "dayjs";
 
+import {
+  LicenseAdminMobileCard,
+  type LicenseAdminRow,
+} from "../../components/admin/LicenseAdminMobileCard";
+import { useIsMobile } from "../../hooks/useIsMobile";
 import { api } from "../../lib/api";
 
-type LicenseRow = {
-  id: string;
-  licenseKey: string | null;
-  licenseKeyPreview: string;
-  status: string;
-  durationDays: number | null;
-  expiresAt: string | null;
-  maxDevices: number;
-  activatedBy: string | null;
-  activatedAt: string | null;
-};
+type LicenseRow = LicenseAdminRow;
 
-export function AdminLicensesPage() {
+async function fetchLicenses(page: number, limit: number) {
+  const { data } = await api.get<{
+    success: boolean;
+    items: LicenseRow[];
+    total: number;
+  }>("/api/admin/licenses", { params: { page, limit } });
+  return data;
+}
+
+function AdminLicensesMobileList({ onCreate }: { onCreate: () => void }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [page, setPage] = useState(1);
+  const limit = 10;
+
+  const listQuery = useQuery({
+    queryKey: ["admin-licenses-mobile", page, limit],
+    queryFn: () => fetchLicenses(page, limit),
+  });
+
+  const items = listQuery.data?.items ?? [];
+  const total = listQuery.data?.total ?? 0;
+
+  return (
+    <div className="space-y-4">
+      <Button type="primary" icon={<PlusOutlined />} block onClick={onCreate}>
+        {t("adminLicenses.create")}
+      </Button>
+
+      {listQuery.isLoading ? (
+        <div className="flex justify-center py-8">
+          <Spin />
+        </div>
+      ) : (
+        <List
+          dataSource={items}
+          renderItem={(row) => (
+            <List.Item className="!px-0">
+              <LicenseAdminMobileCard
+                row={row}
+                onDetail={() => navigate(`/admin/licenses/${row.id}`)}
+              />
+            </List.Item>
+          )}
+        />
+      )}
+
+      {total > limit ? (
+        <Pagination
+          current={page}
+          pageSize={limit}
+          total={total}
+          onChange={setPage}
+          size="small"
+          simple
+          className="flex justify-center"
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function AdminLicensesDesktopTable({ onCreate }: { onCreate: () => void }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -106,42 +165,61 @@ export function AdminLicensesPage() {
   ];
 
   return (
-    <PageContainer
-      title={t("menu.licenses")}
-      extra={[
-        <Button
-          key="create"
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => navigate("/admin/licenses/create")}
-        >
+    <ProTable<LicenseRow>
+      rowKey="id"
+      columns={columns}
+      search={false}
+      cardBordered
+      scroll={{ x: "max-content" }}
+      toolBarRender={() => [
+        <Button key="create" type="primary" icon={<PlusOutlined />} onClick={onCreate}>
           {t("adminLicenses.create")}
         </Button>,
       ]}
+      request={async (params) => {
+        const data = await fetchLicenses(params.current ?? 1, params.pageSize ?? 20);
+        return {
+          data: data.items,
+          total: data.total,
+          success: true,
+        };
+      }}
+      pagination={{ pageSize: 20, showSizeChanger: true }}
+    />
+  );
+}
+
+export function AdminLicensesPage() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
+
+  const createBtn = (
+    <Button
+      key="create"
+      type="primary"
+      icon={<PlusOutlined />}
+      onClick={() => navigate("/admin/licenses/create")}
+      block={isMobile}
     >
-      <ProTable<LicenseRow>
-        rowKey="id"
-        columns={columns}
-        search={false}
-        cardBordered
-        request={async (params) => {
-          const page = params.current ?? 1;
-          const limit = params.pageSize ?? 20;
-          const { data } = await api.get<{
-            success: boolean;
-            items: LicenseRow[];
-            total: number;
-          }>("/api/admin/licenses", {
-            params: { page, limit },
-          });
-          return {
-            data: data.items,
-            total: data.total,
-            success: true,
-          };
-        }}
-        pagination={{ pageSize: 20, showSizeChanger: true }}
-      />
+      {t("adminLicenses.create")}
+    </Button>
+  );
+
+  return (
+    <PageContainer
+      title={t("menu.licenses")}
+      extra={isMobile ? undefined : [createBtn]}
+    >
+      {isMobile ? (
+        <AdminLicensesMobileList
+          onCreate={() => navigate("/admin/licenses/create")}
+        />
+      ) : (
+        <AdminLicensesDesktopTable
+          onCreate={() => navigate("/admin/licenses/create")}
+        />
+      )}
     </PageContainer>
   );
 }

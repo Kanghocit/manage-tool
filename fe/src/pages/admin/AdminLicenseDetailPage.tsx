@@ -1,8 +1,10 @@
 import {
   App as AntApp,
   Button,
+  Card,
   Descriptions,
   InputNumber,
+  List,
   Modal,
   Popconfirm,
   Space,
@@ -18,6 +20,7 @@ import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
 import { api } from "../../lib/api";
+import { useIsMobile } from "../../hooks/useIsMobile";
 
 type LicenseDetail = {
   id: string;
@@ -114,6 +117,7 @@ export function AdminLicenseDetailPage() {
   });
 
   const lic = detailQuery.data;
+  const isMobile = useIsMobile();
 
   const statusColor = (s: string) => {
     if (s === "active") return "green";
@@ -129,38 +133,46 @@ export function AdminLicenseDetailPage() {
       onBack={() => navigate("/admin/licenses")}
       extra={
         lic ? (
-          <Space wrap>
-            <Button onClick={() => setExtendOpen(true)}>
-              {t("adminLicenses.extend")}
-            </Button>
-            <Popconfirm
-              title={t("adminLicenses.confirmDelete")}
-              onConfirm={() => deleteMut.mutate()}
-            >
-              <Button danger loading={deleteMut.isPending}>
-                {t("adminLicenses.delete")}
+          <div
+            className={
+              isMobile
+                ? "admin-mobile-actions flex w-full min-w-[200px] flex-col gap-2"
+                : undefined
+            }
+          >
+            <Space wrap={!isMobile} direction={isMobile ? "vertical" : "horizontal"} className={isMobile ? "w-full" : undefined}>
+              <Button block={isMobile} onClick={() => setExtendOpen(true)}>
+                {t("adminLicenses.extend")}
               </Button>
-            </Popconfirm>
-            {lic.status !== "blocked" ? (
               <Popconfirm
-                title={t("adminLicenses.confirmBlock")}
-                onConfirm={() => blockMut.mutate()}
+                title={t("adminLicenses.confirmDelete")}
+                onConfirm={() => deleteMut.mutate()}
               >
-                <Button danger loading={blockMut.isPending}>
-                  {t("adminLicenses.block")}
+                <Button block={isMobile} danger loading={deleteMut.isPending}>
+                  {t("adminLicenses.delete")}
                 </Button>
               </Popconfirm>
-            ) : (
-              <Popconfirm
-                title={t("adminLicenses.confirmUnblock")}
-                onConfirm={() => unblockMut.mutate()}
-              >
-                <Button type="primary" loading={unblockMut.isPending}>
-                  {t("adminLicenses.unblock")}
-                </Button>
-              </Popconfirm>
-            )}
-          </Space>
+              {lic.status !== "blocked" ? (
+                <Popconfirm
+                  title={t("adminLicenses.confirmBlock")}
+                  onConfirm={() => blockMut.mutate()}
+                >
+                  <Button block={isMobile} danger loading={blockMut.isPending}>
+                    {t("adminLicenses.block")}
+                  </Button>
+                </Popconfirm>
+              ) : (
+                <Popconfirm
+                  title={t("adminLicenses.confirmUnblock")}
+                  onConfirm={() => unblockMut.mutate()}
+                >
+                  <Button block={isMobile} type="primary" loading={unblockMut.isPending}>
+                    {t("adminLicenses.unblock")}
+                  </Button>
+                </Popconfirm>
+              )}
+            </Space>
+          </div>
         ) : null
       }
     >
@@ -219,11 +231,51 @@ export function AdminLicenseDetailPage() {
 
           <div className="rounded-xl bg-white p-4 shadow-sm">
             <div className="mb-2 font-medium">{t("pages.devicesTitle")}</div>
+            {isMobile ? (
+              <List
+                dataSource={lic.devices}
+                renderItem={(row) => (
+                  <List.Item className="!px-0">
+                    <Card size="small" className="admin-mobile-card w-full">
+                      <div className="mb-1 font-mono text-xs break-all">{row.deviceId}</div>
+                      {row.deviceName ? (
+                        <div className="mb-1 text-sm text-slate-600">{row.deviceName}</div>
+                      ) : null}
+                      {row.lastIp ? (
+                        <div className="mb-1 text-sm text-slate-600">IP: {row.lastIp}</div>
+                      ) : null}
+                      <div className="mb-1 text-xs text-slate-500">
+                        {t("adminLicenses.activatedAt")}:{" "}
+                        {dayjs(row.activatedAt).format("YYYY-MM-DD HH:mm")}
+                      </div>
+                      <div className="mb-2">
+                        {row.revokedAt ? (
+                          <Tag>{t("adminLicenses.revoked")}</Tag>
+                        ) : (
+                          <Tag color="green">{t("common.active")}</Tag>
+                        )}
+                      </div>
+                      {!row.revokedAt ? (
+                        <Popconfirm
+                          title={t("adminLicenses.confirmRevoke")}
+                          onConfirm={() => revokeMut.mutate(row.id)}
+                        >
+                          <Button block danger loading={revokeMut.isPending} className="admin-mobile-actions">
+                            {t("adminLicenses.revoke")}
+                          </Button>
+                        </Popconfirm>
+                      ) : null}
+                    </Card>
+                  </List.Item>
+                )}
+              />
+            ) : (
             <Table
               rowKey="id"
               size="small"
               dataSource={lic.devices}
               pagination={false}
+              scroll={{ x: "max-content" }}
               columns={[
                 {
                   title: "deviceId",
@@ -278,6 +330,7 @@ export function AdminLicenseDetailPage() {
                 },
               ]}
             />
+            )}
           </div>
         </>
       ) : null}
@@ -288,6 +341,8 @@ export function AdminLicenseDetailPage() {
         onCancel={() => setExtendOpen(false)}
         onOk={() => extendMut.mutate()}
         confirmLoading={extendMut.isPending}
+        style={{ maxWidth: "calc(100vw - 32px)" }}
+        width={isMobile ? "100%" : 520}
       >
         <div className="mb-2 text-sm text-slate-600">
           {t("adminLicenses.extraDays")}

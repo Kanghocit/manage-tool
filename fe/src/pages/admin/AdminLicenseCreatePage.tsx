@@ -49,7 +49,7 @@ export function AdminLicenseCreatePage() {
       setPlainText(text);
       Modal.success({
         title: t("adminLicenses.keysCreatedTitle"),
-        width: 560,
+        width: "min(560px, calc(100vw - 32px))",
         content: (
           <div className="space-y-3">
             <p className="text-slate-600">
@@ -82,7 +82,7 @@ export function AdminLicenseCreatePage() {
       title={t("adminLicenses.create")}
       onBack={() => navigate("/admin/licenses")}
     >
-      <ProCard bordered className="max-w-xl">
+      <ProCard bordered className="mx-auto w-full max-w-xl">
         <Alert
           type="info"
           showIcon

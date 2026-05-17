@@ -156,10 +156,11 @@ export function DashboardShell() {
       layout="mix"
       splitMenus={false}
       fixSiderbar
+      breakpoint="md"
       contentStyle={{ padding: 0 }}
     >
-      <div className="min-h-screen bg-[#f5f7fb]">
-        <div className="mx-auto max-w-[1600px] p-6">
+      <div className="min-h-screen bg-[#f5f7fb] pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0px,env(safe-area-inset-left))] pr-[max(0px,env(safe-area-inset-right))]">
+        <div className="mx-auto max-w-[1600px] p-3 sm:p-4 md:p-6">
           <Routes>
             <Route path="/dashboard" element={<OverviewPage />} />
             <Route path="/profile" element={<ProfilePage />} />

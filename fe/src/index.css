@@ -37,3 +37,18 @@ body {
 .grid-equal-rows > .ant-pro-card > .ant-pro-card-body {
   height: 100%;
 }
+
+/* Admin mobile: touch-friendly actions (e.g. iPhone 15 Pro ~393px) */
+@media (max-width: 767px) {
+  .admin-mobile-actions .ant-btn {
+    min-height: 44px;
+  }
+
+  .admin-mobile-card {
+    width: 100%;
+  }
+
+  .ant-pro-page-container-children-container {
+    padding-inline: 0;
+  }
+}
