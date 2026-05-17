@@ -89,9 +89,11 @@ export function MyLicensePage() {
   });
 
   const purchasedUnused = meQuery.data?.purchasedUnusedLicense;
+  const isFullLicenseKey = (key: string | null | undefined) =>
+    !!key && !key.includes("*");
 
   useEffect(() => {
-    if (purchasedUnused?.licenseKey) {
+    if (isFullLicenseKey(purchasedUnused?.licenseKey)) {
       setLicenseKey(purchasedUnused.licenseKey);
     }
   }, [purchasedUnused?.licenseKey, purchasedUnused?.id]);
@@ -196,7 +198,7 @@ export function MyLicensePage() {
               <Typography.Text>
                 {t("pages.purchasedUnusedHintShort")}
               </Typography.Text>
-              {purchasedUnused.licenseKey ? (
+              {isFullLicenseKey(purchasedUnused.licenseKey) ? (
                 <div className="rounded-lg border border-emerald-200 bg-white p-3">
                   <Typography.Text type="secondary" className="text-xs">
                     {t("pages.licenseKeyLabel")}
@@ -285,7 +287,7 @@ export function MyLicensePage() {
                 <Typography.Text strong className="block mb-1">
                   {t("pages.licenseKeyLabel")}:
                 </Typography.Text>
-                {meQuery.data.license.licenseKey ? (
+                {isFullLicenseKey(meQuery.data.license.licenseKey) ? (
                   <Typography.Text code copyable className="text-sm break-all">
                     {meQuery.data.license.licenseKey}
                   </Typography.Text>

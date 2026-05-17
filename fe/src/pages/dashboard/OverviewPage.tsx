@@ -239,6 +239,8 @@ function UserOverviewSection() {
 
   const lic = userLicenseQuery.data?.license;
   const purchasedUnused = userLicenseQuery.data?.purchasedUnusedLicense ?? null;
+  const isFullLicenseKey = (key: string | null | undefined) =>
+    !!key && !key.includes("*");
   const order = orderQuery.data;
   const pendingCreatedAt =
     order?.status === "pending" ? order.createdAt : undefined;
@@ -375,7 +377,7 @@ function UserOverviewSection() {
             className="mb-4"
             message={t("pages.purchasedUnusedTitle")}
             description={
-              purchasedUnused.licenseKey ? (
+              isFullLicenseKey(purchasedUnused.licenseKey) ? (
                 <div className="space-y-2">
                   <span>{t("pages.purchasedUnusedHintShort")}</span>
                   <div>
