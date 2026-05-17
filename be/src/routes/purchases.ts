@@ -71,8 +71,8 @@ async function uniqueTransferContent(): Promise<string> {
   throw new Error("Could not allocate transfer reference");
 }
 
-/** Pending orders older than this are auto-expired (20 seconds). */
-const ORDER_EXPIRY_MS = 30 * 1000;
+/** Pending orders older than this are auto-expired (2 minutes). */
+const ORDER_EXPIRY_MS = 120 * 1000;
 
 /** Expire a stale pending order; returns true if it was expired. */
 async function expireIfStale(
@@ -94,33 +94,37 @@ purchasesRouter.post("/", async (req, res, next) => {
   try {
     const parsed = createBodySchema.safeParse(req.body);
     if (!parsed.success) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          code: "INVALID_PAYLOAD",
-          message: "Invalid purchase payload.",
-        });
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_PAYLOAD",
+        message: "Invalid purchase payload.",
+      });
     }
 
     const pkg = getPackageByCode(parsed.data.packageCode);
     if (!pkg) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          code: "UNKNOWN_PACKAGE",
-          message: "Unknown package.",
-        });
+      return res.status(400).json({
+        success: false,
+        code: "UNKNOWN_PACKAGE",
+        message: "Unknown package.",
+      });
     }
 
     // adminOnly packages → only admins; regular packages → only users.
-    if (pkg.adminOnly && req.auth!.role === 'user') {
-      return res.status(403).json({ success: false, code: 'ADMIN_ONLY_PACKAGE', message: 'This package is not available for purchase.' })
+    if (pkg.adminOnly && req.auth!.role === "user") {
+      return res.status(403).json({
+        success: false,
+        code: "ADMIN_ONLY_PACKAGE",
+        message: "This package is not available for purchase.",
+      });
     }
-    if (!pkg.adminOnly && req.auth!.role !== 'user') {
-      return res.status(403).json({ success: false, code: 'USER_ONLY_PACKAGE', message: 'Regular packages are for user accounts only.' })
-    }
+    // if (!pkg.adminOnly && req.auth!.role !== "user") {
+    //   return res.status(403).json({
+    //     success: false,
+    //     code: "USER_ONLY_PACKAGE",
+    //     message: "Regular packages are for user accounts only.",
+    //   });
+    // }
 
     // One-time limit: PKG_1D can only be purchased once per account.
     if (parsed.data.packageCode === "PKG_1D") {
@@ -248,13 +252,11 @@ purchasesRouter.delete("/:id", async (req, res, next) => {
   try {
     const id = z.string().uuid().safeParse(req.params.id);
     if (!id.success) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          code: "INVALID_ID",
-          message: "Invalid order id.",
-        });
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_ID",
+        message: "Invalid order id.",
+      });
     }
 
     const order = await prisma.purchaseOrder.findFirst({
@@ -263,13 +265,11 @@ purchasesRouter.delete("/:id", async (req, res, next) => {
     });
 
     if (!order) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          code: "NOT_FOUND",
-          message: "Order not found.",
-        });
+      return res.status(404).json({
+        success: false,
+        code: "NOT_FOUND",
+        message: "Order not found.",
+      });
     }
 
     if (order.status !== "pending") {
@@ -295,13 +295,11 @@ purchasesRouter.get("/:id", async (req, res, next) => {
   try {
     const id = z.string().uuid().safeParse(req.params.id);
     if (!id.success) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          code: "INVALID_ID",
-          message: "Invalid order id.",
-        });
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_ID",
+        message: "Invalid order id.",
+      });
     }
 
     const order = await prisma.purchaseOrder.findFirst({
@@ -318,13 +316,11 @@ purchasesRouter.get("/:id", async (req, res, next) => {
     });
 
     if (!order) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          code: "NOT_FOUND",
-          message: "Order not found.",
-        });
+      return res.status(404).json({
+        success: false,
+        code: "NOT_FOUND",
+        message: "Order not found.",
+      });
     }
 
     const qrImageUrl = resolvePurchaseQrImageUrl(

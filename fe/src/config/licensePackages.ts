@@ -23,13 +23,12 @@ export const LICENSE_PACKAGES_UI: LicensePackageUi[] = [
   {
     code: "PKG_1D",
     durationDays: 1,
-    amountVnd: 10_000,
+    amountVnd: 25_000,
     period: { unit: "day", days: 1 },
     theme: "border-slate-300 bg-gradient-to-b from-slate-100/90 to-white",
     icon: "🧪",
     i18nPrefix: "pkg1d",
     advantageIds: ["a1", "a2", "a3"],
-    adminOnly: true,
   },
   {
     code: "PKG_3M",

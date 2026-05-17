@@ -27,7 +27,7 @@ import dayjs from "dayjs";
 
 import { LICENSE_PACKAGES_UI } from "../../config/licensePackages";
 
-const ORDER_EXPIRY_MS = 20 * 1000; // 20 giây
+const ORDER_EXPIRY_MS = 120 * 1000; // 2 phút
 
 function useOrderCountdown(createdAt: string | undefined) {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
@@ -610,7 +610,7 @@ function AdminTestPurchaseSection() {
   });
 
   const order = orderQuery.data;
-  const adminPackages = LICENSE_PACKAGES_UI.filter((p) => p.adminOnly);
+  const adminPackages = LICENSE_PACKAGES_UI.filter((p) => p.code === "PKG_1D");
   const modalSecondsLeft = useOrderCountdown(
     order?.status === "pending" ? order.createdAt : undefined,
   );
