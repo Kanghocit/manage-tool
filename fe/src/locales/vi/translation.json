@@ -196,6 +196,8 @@
     "purchasePaid": "Đã nhận thanh toán. Vào License của tôi để kích hoạt key mới.",
     "purchasedUnusedTitle": "Đã thanh toán — license mới",
     "purchasedUnusedHint": "Xem trước: {{preview}}. Vào License của tôi, dán đủ key (email/admin), rồi bấm Kích hoạt.",
+    "purchasedUnusedHintShort": "Copy license key bên dưới, dán vào ô bên trái (hoặc đã điền sẵn), rồi bấm Kích hoạt.",
+    "licenseKeyLabel": "License key",
     "yourLicenseSection": "License hiện tại của bạn",
     "adminTestPurchaseTitle": "Mua thử (chỉ admin)",
     "adminTestPurchaseHint": "Gói này dùng để test luồng thanh toán. Dùng endpoint admin-confirm nếu chưa cấu hình webhook SePay.",

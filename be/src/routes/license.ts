@@ -283,7 +283,16 @@ licenseRouter.get("/me", requireAuth, async (req, res, next) => {
     const license = await prisma.license.findFirst({
       where: { activatedById: userId, deletedAt: null },
       orderBy: { activatedAt: "desc" },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        expiresAt: true,
+        durationDays: true,
+        activatedAt: true,
+        activatedById: true,
+        maxDevices: true,
+        licenseKeyPlain: true,
+        licenseKeyPreview: true,
         activations: {
           where: { revokedAt: null },
           orderBy: { lastSeenAt: "desc" },
@@ -312,6 +321,7 @@ licenseRouter.get("/me", requireAuth, async (req, res, next) => {
 
     let purchasedUnusedLicense: {
       id: string;
+      licenseKey: string | null;
       licenseKeyPreview: string;
       durationDays: number | null;
       purchaseOrderId: string | null;
@@ -327,6 +337,7 @@ licenseRouter.get("/me", requireAuth, async (req, res, next) => {
       ) {
         purchasedUnusedLicense = {
           id: l.id,
+          licenseKey: l.licenseKeyPlain,
           licenseKeyPreview: l.licenseKeyPreview,
           durationDays: l.durationDays,
           purchaseOrderId: order.id,
@@ -336,11 +347,12 @@ licenseRouter.get("/me", requireAuth, async (req, res, next) => {
     }
 
     if (!license) {
-      if (req.auth!.role === 'user' && !purchasedUnusedLicense) {
+      if (req.auth!.role === "user" && !purchasedUnusedLicense) {
         return res.status(404).json({
           success: false,
-          code: 'NO_LICENSE',
-          message: 'Bạn chưa có license. Vui lòng mua hoặc nhập license key để tiếp tục.',
+          code: "NO_LICENSE",
+          message:
+            "Bạn chưa có license. Vui lòng mua hoặc nhập license key để tiếp tục.",
         });
       }
       return res.json({
@@ -351,10 +363,11 @@ licenseRouter.get("/me", requireAuth, async (req, res, next) => {
       });
     }
 
-    const expired = !!license.expiresAt && license.expiresAt.getTime() <= Date.now();
+    const expired =
+      !!license.expiresAt && license.expiresAt.getTime() <= Date.now();
     const blocked = license.status === "blocked";
     const active = license.status === "active" && !blocked && !expired;
-    const devices = license.activations.map((d) => ({
+    const devices = license.activations.map((d: any) => ({
       id: d.id,
       deviceId: d.deviceId,
       deviceName: d.deviceName,
@@ -367,7 +380,8 @@ licenseRouter.get("/me", requireAuth, async (req, res, next) => {
       success: true,
       license: {
         id: license.id,
-        licenseKey: license.licenseKeyPreview,
+        licenseKey: license.licenseKeyPlain,
+        licenseKeyPreview: license.licenseKeyPreview,
         status: license.status,
         active,
         blocked,

@@ -197,6 +197,8 @@
     "purchasePaid": "Payment received. Open My License to activate your new key.",
     "purchasedUnusedTitle": "Paid — new license key",
     "purchasedUnusedHint": "Preview: {{preview}}. Open My License, paste the full key from your payment confirmation email or admin, then Activate.",
+    "purchasedUnusedHintShort": "Copy the license key below, paste it on the left (or use the pre-filled value), then Activate.",
+    "licenseKeyLabel": "License key",
     "yourLicenseSection": "Your current license",
     "adminTestPurchaseTitle": "Test purchase (admin only)",
     "adminTestPurchaseHint": "These packages are for testing the payment flow. Use the admin-confirm endpoint if SePay webhook is not set up.",

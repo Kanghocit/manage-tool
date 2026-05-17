@@ -40,7 +40,10 @@ function useOrderCountdown(createdAt: string | undefined) {
     }
     const expiresAt = new Date(createdAt).getTime() + ORDER_EXPIRY_MS;
     const tick = () => {
-      const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+      const remaining = Math.max(
+        0,
+        Math.floor((expiresAt - Date.now()) / 1000),
+      );
       setSecondsLeft(remaining);
     };
     tick();
@@ -92,6 +95,7 @@ type LicenseMeRes = {
   /** New key from purchase; still unused until user activates on My License */
   purchasedUnusedLicense: {
     id: string;
+    licenseKey: string | null;
     licenseKeyPreview: string;
     durationDays: number | null;
     purchaseOrderId: string | null;
@@ -114,9 +118,10 @@ function UserOverviewSection() {
   const pendingOrderQuery = useQuery({
     queryKey: ["purchase-order-pending"],
     queryFn: async () => {
-      const res = await api.get<{ success: boolean; order: PurchaseOrderDto | null }>(
-        "/api/purchases/pending",
-      );
+      const res = await api.get<{
+        success: boolean;
+        order: PurchaseOrderDto | null;
+      }>("/api/purchases/pending");
       return res.data.order;
     },
     staleTime: 0,
@@ -172,7 +177,9 @@ function UserOverviewSection() {
     onSuccess: () => {
       setPayModalOpen(false);
       setActiveOrderId(null);
-      void queryClient.invalidateQueries({ queryKey: ["purchase-order-pending"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["purchase-order-pending"],
+      });
       message.success(t("pages.orderCancelled"));
     },
     onError: () => {
@@ -215,7 +222,10 @@ function UserOverviewSection() {
         if (data.order) {
           setActiveOrderId(data.order.id);
           setPayModalOpen(true);
-          queryClient.setQueryData(["purchase-order", data.order.id], data.order);
+          queryClient.setQueryData(
+            ["purchase-order", data.order.id],
+            data.order,
+          );
           message.warning(t("pages.pendingOrderReused"));
           return;
         }
@@ -230,7 +240,8 @@ function UserOverviewSection() {
   const lic = userLicenseQuery.data?.license;
   const purchasedUnused = userLicenseQuery.data?.purchasedUnusedLicense ?? null;
   const order = orderQuery.data;
-  const pendingCreatedAt = order?.status === "pending" ? order.createdAt : undefined;
+  const pendingCreatedAt =
+    order?.status === "pending" ? order.createdAt : undefined;
   const pendingBannerCreatedAt =
     pendingOrder?.status === "pending" ? pendingOrder.createdAt : undefined;
   const modalSecondsLeft = useOrderCountdown(pendingCreatedAt);
@@ -240,7 +251,9 @@ function UserOverviewSection() {
   useEffect(() => {
     if (modalSecondsLeft === 0) {
       void orderQuery.refetch();
-      void queryClient.invalidateQueries({ queryKey: ["purchase-order-pending"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["purchase-order-pending"],
+      });
     }
   }, [modalSecondsLeft, orderQuery, queryClient]);
   const pricePerPeriod = (pkg: (typeof LICENSE_PACKAGES_UI)[number]) => {
@@ -361,9 +374,27 @@ function UserOverviewSection() {
             showIcon
             className="mb-4"
             message={t("pages.purchasedUnusedTitle")}
-            description={t("pages.purchasedUnusedHint", {
-              preview: purchasedUnused.licenseKeyPreview,
-            })}
+            description={
+              purchasedUnused.licenseKey ? (
+                <div className="space-y-2">
+                  <span>{t("pages.purchasedUnusedHintShort")}</span>
+                  <div>
+                    <Typography.Text type="secondary" className="text-xs">
+                      {t("pages.licenseKeyLabel")}
+                    </Typography.Text>
+                    <div className="mt-1">
+                      <Typography.Text code copyable className="text-sm">
+                        {purchasedUnused.licenseKey}
+                      </Typography.Text>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                t("pages.purchasedUnusedHint", {
+                  preview: purchasedUnused.licenseKeyPreview,
+                })
+              )
+            }
           />
         ) : null}
         {userLicenseQuery.isLoading ? (
@@ -425,7 +456,9 @@ function UserOverviewSection() {
         title={
           <span>
             {t("pages.purchaseModalTitle")}
-            {order?.status === "pending" && modalSecondsLeft !== null && modalSecondsLeft > 0 ? (
+            {order?.status === "pending" &&
+            modalSecondsLeft !== null &&
+            modalSecondsLeft > 0 ? (
               <span className="ml-2 font-mono text-sm text-orange-500">
                 {formatCountdown(modalSecondsLeft)}
               </span>
@@ -599,12 +632,17 @@ function AdminTestPurchaseSection() {
         if (data.order) {
           setActiveOrderId(data.order.id);
           setPayModalOpen(true);
-          queryClient.setQueryData(["purchase-order", data.order.id], data.order);
+          queryClient.setQueryData(
+            ["purchase-order", data.order.id],
+            data.order,
+          );
           message.warning(t("pages.pendingOrderReused"));
           return;
         }
       }
-      const msg = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
+      const msg = axios.isAxiosError(err)
+        ? err.response?.data?.message
+        : undefined;
       message.error(typeof msg === "string" ? msg : t("common.loading"));
     },
   });
@@ -646,7 +684,9 @@ function AdminTestPurchaseSection() {
             >
               {pkg.period.unit === "month"
                 ? t("pages.packageDuration", { count: pkg.period.months })
-                : t("pages.packageDurationDays", { count: pkg.period.days })}{" "}
+                : t("pages.packageDurationDays", {
+                    count: pkg.period.days,
+                  })}{" "}
               — {formatVnd(pkg.amountVnd)} ₫
             </Button>
           ))}

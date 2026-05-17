@@ -27,6 +27,8 @@ type LicenseMeResponse = {
   success: true;
   license: null | {
     id: string;
+    licenseKey: string | null;
+    licenseKeyPreview?: string;
     status: "unused" | "active" | "expired" | "blocked";
     expiresAt: string | null;
     durationDays: number | null;
@@ -41,6 +43,7 @@ type LicenseMeResponse = {
   };
   purchasedUnusedLicense?: {
     id: string;
+    licenseKey: string | null;
     licenseKeyPreview: string;
     durationDays: number | null;
     purchaseOrderId: string | null;
@@ -84,6 +87,14 @@ export function MyLicensePage() {
       }
     },
   });
+
+  const purchasedUnused = meQuery.data?.purchasedUnusedLicense;
+
+  useEffect(() => {
+    if (purchasedUnused?.licenseKey) {
+      setLicenseKey(purchasedUnused.licenseKey);
+    }
+  }, [purchasedUnused?.licenseKey, purchasedUnused?.id]);
 
   const activateMutation = useMutation({
     mutationFn: async () => {
@@ -174,15 +185,37 @@ export function MyLicensePage() {
       title={t("menu.myLicense")}
       subTitle={t("pages.myLicenseSubtitle")}
     >
-      {meQuery.data?.purchasedUnusedLicense ? (
+      {purchasedUnused ? (
         <Alert
           type="success"
           showIcon
           className="mb-4"
           message={t("pages.purchasedUnusedTitle")}
-          description={t("pages.purchasedUnusedHint", {
-            preview: meQuery.data.purchasedUnusedLicense.licenseKeyPreview,
-          })}
+          description={
+            <div className="space-y-2">
+              <Typography.Text>
+                {t("pages.purchasedUnusedHintShort")}
+              </Typography.Text>
+              {purchasedUnused.licenseKey ? (
+                <div className="rounded-lg border border-emerald-200 bg-white p-3">
+                  <Typography.Text type="secondary" className="text-xs">
+                    {t("pages.licenseKeyLabel")}
+                  </Typography.Text>
+                  <div className="mt-1">
+                    <Typography.Text code copyable className="text-sm">
+                      {purchasedUnused.licenseKey}
+                    </Typography.Text>
+                  </div>
+                </div>
+              ) : (
+                <Typography.Text type="secondary">
+                  {t("pages.purchasedUnusedHint", {
+                    preview: purchasedUnused.licenseKeyPreview,
+                  })}
+                </Typography.Text>
+              )}
+            </div>
+          }
         />
       ) : null}
       <div className="grid grid-equal-rows gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
@@ -247,6 +280,21 @@ export function MyLicensePage() {
               <div className="flex items-center gap-2">
                 <Typography.Text strong>{t("common.status")}:</Typography.Text>
                 {statusTag(meQuery.data.license.status)}
+              </div>
+              <div>
+                <Typography.Text strong className="block mb-1">
+                  {t("pages.licenseKeyLabel")}:
+                </Typography.Text>
+                {meQuery.data.license.licenseKey ? (
+                  <Typography.Text code copyable className="text-sm break-all">
+                    {meQuery.data.license.licenseKey}
+                  </Typography.Text>
+                ) : (
+                  <Typography.Text type="secondary" className="text-sm">
+                    {meQuery.data.license.licenseKeyPreview ?? "—"} (
+                    {t("adminLicenses.legacyNoPlain")})
+                  </Typography.Text>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Typography.Text strong>
