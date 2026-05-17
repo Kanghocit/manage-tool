@@ -308,7 +308,7 @@ function UserOverviewSection() {
       </Typography.Paragraph>
 
       <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {LICENSE_PACKAGES_UI.filter((pkg) => !pkg.adminOnly).map((pkg) => (
+        {LICENSE_PACKAGES_UI.map((pkg) => (
           <div
             key={pkg.code}
             className={`flex h-full flex-col rounded-2xl border-2 p-5 shadow-sm ${pkg.theme}`}

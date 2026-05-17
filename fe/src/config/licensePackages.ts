@@ -15,8 +15,6 @@ export type LicensePackageUi = {
   /** i18n prefix under `pages` */
   i18nPrefix: string;
   advantageIds: ("a1" | "a2" | "a3")[];
-  /** If true, only show this package to admin users */
-  adminOnly?: boolean;
 };
 
 export const LICENSE_PACKAGES_UI: LicensePackageUi[] = [

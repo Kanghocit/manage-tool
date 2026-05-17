@@ -14,8 +14,6 @@ export type LicensePackageDef = {
   durationDays: number;
   amountVnd: number;
   labelKey: string;
-  /** If true, only admin users may purchase this package. */
-  adminOnly?: boolean;
 };
 
 /** Single source of truth for purchase packages (amount + duration). */

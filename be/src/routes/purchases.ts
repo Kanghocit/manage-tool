@@ -110,22 +110,6 @@ purchasesRouter.post("/", async (req, res, next) => {
       });
     }
 
-    // adminOnly packages → only admins; regular packages → only users.
-    if (pkg.adminOnly && req.auth!.role === "user") {
-      return res.status(403).json({
-        success: false,
-        code: "ADMIN_ONLY_PACKAGE",
-        message: "This package is not available for purchase.",
-      });
-    }
-    // if (!pkg.adminOnly && req.auth!.role !== "user") {
-    //   return res.status(403).json({
-    //     success: false,
-    //     code: "USER_ONLY_PACKAGE",
-    //     message: "Regular packages are for user accounts only.",
-    //   });
-    // }
-
     // One-time limit: PKG_1D can only be purchased once per account.
     if (parsed.data.packageCode === "PKG_1D") {
       const alreadyBought = await prisma.purchaseOrder.findFirst({
