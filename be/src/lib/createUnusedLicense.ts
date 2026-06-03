@@ -1,34 +1,66 @@
-import type { Prisma } from '@prisma/client'
+import type { Prisma } from "@prisma/client";
 
-import { prisma } from './prisma'
-import { generateLicenseKey, licenseKeyHash, licenseKeyPreview } from '../utils/licenseKey'
+import { prisma } from "./prisma";
+import {
+  generateLicenseKey,
+  licenseKeyHash,
+  licenseKeyPreview,
+} from "../utils/licenseKey";
 
-type DbClient = Prisma.TransactionClient | typeof prisma
+type DbClient = Prisma.TransactionClient | typeof prisma;
 
 type CreateUnusedLicenseInput = {
-  durationDays: number | null
-  notes?: string | null
-  createdById?: string | null
-  maxDevices?: number
+  durationDays: number | null;
+  notes?: string | null;
+  createdById?: string | null;
+  maxDevices?: number;
+  customKey?: string | null;
+};
+
+export class DuplicateLicenseKeyError extends Error {
+  constructor(message = "License key already exists") {
+    super(message);
+    this.name = "DuplicateLicenseKeyError";
+  }
 }
 
 /**
  * Creates a single unused license with a unique key hash (same algorithm as admin bulk create).
  */
-export async function createUnusedLicense(db: DbClient, input: CreateUnusedLicenseInput) {
-  const maxDevices = input.maxDevices ?? 1
-  let plain = generateLicenseKey()
-  let hash = licenseKeyHash(plain)
-  let tries = 0
-  while (tries < 20) {
-    const exists = await db.license.findUnique({ where: { licenseKeyHash: hash } })
-    if (!exists) break
-    plain = generateLicenseKey()
-    hash = licenseKeyHash(plain)
-    tries += 1
-  }
-  if (tries >= 20) {
-    throw new Error('Could not generate unique license key')
+export async function createUnusedLicense(
+  db: DbClient,
+  input: CreateUnusedLicenseInput,
+) {
+  const maxDevices = input.maxDevices ?? 1;
+  let plain: string;
+  let hash: string;
+
+  const customKey = input.customKey?.trim();
+  if (customKey) {
+    plain = customKey;
+    hash = licenseKeyHash(customKey);
+    const exists = await db.license.findUnique({
+      where: { licenseKeyHash: hash },
+    });
+    if (exists) {
+      throw new DuplicateLicenseKeyError();
+    }
+  } else {
+    plain = generateLicenseKey();
+    hash = licenseKeyHash(plain);
+    let tries = 0;
+    while (tries < 20) {
+      const exists = await db.license.findUnique({
+        where: { licenseKeyHash: hash },
+      });
+      if (!exists) break;
+      plain = generateLicenseKey();
+      hash = licenseKeyHash(plain);
+      tries += 1;
+    }
+    if (tries >= 20) {
+      throw new Error("Could not generate unique license key");
+    }
   }
 
   const license = await db.license.create({
@@ -36,13 +68,13 @@ export async function createUnusedLicense(db: DbClient, input: CreateUnusedLicen
       licenseKeyHash: hash,
       licenseKeyPlain: plain,
       licenseKeyPreview: licenseKeyPreview(plain),
-      status: 'unused',
+      status: "unused",
       durationDays: input.durationDays ?? null,
       maxDevices,
       notes: input.notes ?? null,
       createdById: input.createdById ?? null,
     },
-  })
+  });
 
-  return license
+  return license;
 }

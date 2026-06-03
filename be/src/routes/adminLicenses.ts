@@ -4,7 +4,10 @@ import type { LicenseStatus, Prisma } from "@prisma/client";
 
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
-import { createUnusedLicense } from "../lib/createUnusedLicense";
+import {
+  createUnusedLicense,
+  DuplicateLicenseKeyError,
+} from "../lib/createUnusedLicense";
 import { licenseKeyPreview } from "../utils/licenseKey";
 
 const admin = [requireAuth, requireRole("admin")];
@@ -14,6 +17,7 @@ const createSchema = z.object({
   maxDevices: z.number().int().min(1).max(50).default(1),
   quantity: z.number().int().min(1).max(100).default(1),
   notes: z.string().max(500).optional(),
+  licenseKey: z.string().trim().min(8).max(100).optional(),
 });
 
 const listQuerySchema = z.object({
@@ -74,8 +78,11 @@ adminLicensesRouter.post("/", async (req, res, next) => {
         });
     }
 
-    const { durationDays, maxDevices, quantity, notes } = parsed.data;
+    const { durationDays, maxDevices, notes, licenseKey } = parsed.data;
     const actorId = req.auth!.userId;
+    const customKey = licenseKey?.trim() || null;
+    // A custom key can only produce one license.
+    const quantity = customKey ? 1 : parsed.data.quantity;
 
     const created: {
       licenseKey: string;
@@ -83,24 +90,37 @@ adminLicensesRouter.post("/", async (req, res, next) => {
       maxDevices: number;
     }[] = [];
 
-    await prisma.$transaction(async (tx) => {
-      for (let i = 0; i < quantity; i += 1) {
-        const license = await createUnusedLicense(tx, {
-          durationDays: durationDays ?? null,
-          maxDevices,
-          notes: notes ?? null,
-          createdById: actorId,
-        });
-        created.push({
-          licenseKey: license.licenseKeyPlain ?? "",
-          durationDays: durationDays ?? null,
-          maxDevices,
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (let i = 0; i < quantity; i += 1) {
+          const license = await createUnusedLicense(tx, {
+            durationDays: durationDays ?? null,
+            maxDevices,
+            notes: notes ?? null,
+            createdById: actorId,
+            customKey,
+          });
+          created.push({
+            licenseKey: license.licenseKeyPlain ?? "",
+            durationDays: durationDays ?? null,
+            maxDevices,
+          });
+        }
+      });
+    } catch (err) {
+      if (err instanceof DuplicateLicenseKeyError) {
+        return res.status(409).json({
+          success: false,
+          code: "DUPLICATE_KEY",
+          message: "License key đã tồn tại. Vui lòng nhập key khác.",
         });
       }
-    });
+      throw err;
+    }
 
     await audit(actorId, "admin.license.create", "license", "bulk", {
       quantity,
+      customKey: customKey ? true : false,
     });
 
     return res.status(201).json({ success: true, licenses: created });

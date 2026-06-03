@@ -1,10 +1,13 @@
 import { App as AntApp, Alert, Button, Input, Modal, Space } from "antd";
+import axios from "axios";
 import {
   PageContainer,
   ProCard,
   ProForm,
   ProFormDigit,
+  ProFormDependency,
   ProFormSelect,
+  ProFormText,
 } from "@ant-design/pro-components";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -33,14 +36,17 @@ export function AdminLicenseCreatePage() {
       durationPreset: number | "lifetime";
       maxDevices: number;
       quantity: number;
+      licenseKey?: string;
     }) => {
       const durationDays =
         values.durationPreset === "lifetime" ? null : values.durationPreset;
+      const customKey = values.licenseKey?.trim();
       return api
         .post<CreateRes>("/api/admin/licenses", {
           durationDays,
           maxDevices: values.maxDevices,
-          quantity: values.quantity,
+          quantity: customKey ? 1 : values.quantity,
+          ...(customKey ? { licenseKey: customKey } : {}),
         })
         .then((r) => r.data);
     },
@@ -74,7 +80,12 @@ export function AdminLicenseCreatePage() {
       });
       message.success(t("adminLicenses.createSuccess"));
     },
-    onError: (err: Error) => message.error(err.message),
+    onError: (err: Error) => {
+      const apiMessage = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string } | undefined)?.message
+        : undefined;
+      message.error(apiMessage ?? err.message);
+    },
   });
 
   return (
@@ -102,10 +113,19 @@ export function AdminLicenseCreatePage() {
                 durationPreset: number | "lifetime";
                 maxDevices: number;
                 quantity: number;
+                licenseKey?: string;
               },
             );
           }}
         >
+          <ProFormText
+            name="licenseKey"
+            label={t("adminLicenses.customKeyLabel")}
+            placeholder="MYKEY-2026-VIP"
+            tooltip={t("adminLicenses.customKeyHint")}
+            extra={t("adminLicenses.customKeyHint")}
+            rules={[{ min: 8, message: t("adminLicenses.customKeyHint") }]}
+          />
           <ProFormSelect
             name="durationPreset"
             label={t("adminLicenses.durationPreset")}
@@ -126,13 +146,27 @@ export function AdminLicenseCreatePage() {
             max={50}
             rules={[{ required: true }]}
           />
-          <ProFormDigit
-            name="quantity"
-            label={t("adminLicenses.quantity")}
-            min={1}
-            max={100}
-            rules={[{ required: true }]}
-          />
+          <ProFormDependency name={["licenseKey"]}>
+            {({ licenseKey }) => {
+              const hasCustomKey = !!licenseKey?.trim();
+              return (
+                <ProFormDigit
+                  name="quantity"
+                  label={t("adminLicenses.quantity")}
+                  min={1}
+                  max={100}
+                  disabled={hasCustomKey}
+                  fieldProps={{ value: hasCustomKey ? 1 : undefined }}
+                  extra={
+                    hasCustomKey
+                      ? t("adminLicenses.customKeyForcesSingle")
+                      : undefined
+                  }
+                  rules={[{ required: true }]}
+                />
+              );
+            }}
+          </ProFormDependency>
         </ProForm>
         {plainText ? (
           <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
