@@ -172,12 +172,20 @@ function AdminLicensesDesktopTable({ onCreate }: { onCreate: () => void }) {
       cardBordered
       scroll={{ x: "max-content" }}
       toolBarRender={() => [
-        <Button key="create" type="primary" icon={<PlusOutlined />} onClick={onCreate}>
+        <Button
+          key="create"
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={onCreate}
+        >
           {t("adminLicenses.create")}
         </Button>,
       ]}
       request={async (params) => {
-        const data = await fetchLicenses(params.current ?? 1, params.pageSize ?? 20);
+        const data = await fetchLicenses(
+          params.current ?? 1,
+          params.pageSize ?? 20,
+        );
         return {
           data: data.items,
           total: data.total,
@@ -194,22 +202,22 @@ export function AdminLicensesPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  const createBtn = (
-    <Button
-      key="create"
-      type="primary"
-      icon={<PlusOutlined />}
-      onClick={() => navigate("/admin/licenses/create")}
-      block={isMobile}
-    >
-      {t("adminLicenses.create")}
-    </Button>
-  );
+  // const createBtn = (
+  //   <Button
+  //     key="create"
+  //     type="primary"
+  //     icon={<PlusOutlined />}
+  //     onClick={() => navigate("/admin/licenses/create")}
+  //     block={isMobile}
+  //   >
+  //     {t("adminLicenses.create")}
+  //   </Button>
+  // );
 
   return (
     <PageContainer
       title={t("menu.licenses")}
-      extra={isMobile ? undefined : [createBtn]}
+      // extra={isMobile ? undefined : [createBtn]}
     >
       {isMobile ? (
         <AdminLicensesMobileList
