@@ -135,7 +135,9 @@ function UserOverviewSection() {
   const licenseRequestQuery = useQuery({
     queryKey: ["license-request-me"],
     queryFn: async () => {
-      const res = await api.get<LicenseRequestMeRes>("/api/license-requests/me");
+      const res = await api.get<LicenseRequestMeRes>(
+        "/api/license-requests/me",
+      );
       return res.data.request;
     },
   });
@@ -214,10 +216,10 @@ function UserOverviewSection() {
 
   const licenseRequestMutation = useMutation({
     mutationFn: async (note: string) => {
-      const res = await api.post<{ success: boolean; request: LicenseRequestMeRes["request"] }>(
-        "/api/license-requests",
-        { note: note.trim() || undefined },
-      );
+      const res = await api.post<{
+        success: boolean;
+        request: LicenseRequestMeRes["request"];
+      }>("/api/license-requests", { note: note.trim() || undefined });
       return res.data.request;
     },
     onSuccess: () => {
@@ -369,91 +371,6 @@ function UserOverviewSection() {
         />
       ) : null}
 
-      <ProCard
-        bordered
-        className="mb-6"
-        title={
-          <span className="flex items-center gap-2">
-            <FileTextOutlined />
-            {t("licenseRequest.title")}
-          </span>
-        }
-      >
-        <Typography.Paragraph type="secondary" className="!mb-4">
-          {t("licenseRequest.subtitle")}
-        </Typography.Paragraph>
-
-        {licenseRequestQuery.isLoading ? (
-          <span className="text-slate-500">{t("common.loading")}</span>
-        ) : licenseRequest?.status === "pending" ? (
-          <Alert
-            type="warning"
-            showIcon
-            message={t("licenseRequest.statusPending")}
-            description={
-              licenseRequest.note ? (
-                <span>
-                  {t("adminLicenseRequests.note")}: {licenseRequest.note}
-                </span>
-              ) : undefined
-            }
-          />
-        ) : licenseRequest?.status === "approved" ? (
-          <Alert
-            type="success"
-            showIcon
-            message={t("licenseRequest.statusApproved")}
-            action={
-              <Button size="small" type="primary" onClick={() => navigate("/my-license")}>
-                {t("licenseRequest.goToMyLicense")}
-              </Button>
-            }
-          />
-        ) : licenseRequest?.status === "rejected" ? (
-          <Alert
-            type="error"
-            showIcon
-            className="mb-4"
-            message={t("licenseRequest.statusRejected")}
-            description={
-              licenseRequest.rejectReason
-                ? `${t("licenseRequest.rejectReason")}: ${licenseRequest.rejectReason}`
-                : undefined
-            }
-          />
-        ) : null}
-
-        {canSubmitLicenseRequest ? (
-          <div className="space-y-3">
-            {licenseRequest?.status === "rejected" ? (
-              <Typography.Text type="secondary">
-                {t("licenseRequest.requestAgain")}
-              </Typography.Text>
-            ) : null}
-            <div>
-              <Typography.Text type="secondary" className="text-sm">
-                {t("licenseRequest.noteLabel")}
-              </Typography.Text>
-              <Input.TextArea
-                className="mt-1"
-                rows={3}
-                value={requestNote}
-                onChange={(e) => setRequestNote(e.target.value)}
-                placeholder={t("licenseRequest.notePlaceholder")}
-                maxLength={500}
-              />
-            </div>
-            <Button
-              type="primary"
-              loading={licenseRequestMutation.isPending}
-              onClick={() => licenseRequestMutation.mutate(requestNote)}
-            >
-              {t("licenseRequest.submit")}
-            </Button>
-          </div>
-        ) : null}
-      </ProCard>
-
       <Typography.Title level={4} className="mt-0 mb-2">
         {t("pages.purchaseTitle")}
       </Typography.Title>
@@ -504,6 +421,95 @@ function UserOverviewSection() {
           </div>
         ))}
       </div>
+
+      <ProCard
+        bordered
+        className="!mb-6"
+        title={
+          <span className="flex items-center gap-2">
+            <FileTextOutlined />
+            {t("licenseRequest.title")}
+          </span>
+        }
+      >
+        <Typography.Paragraph type="secondary" className="!mb-4">
+          {t("licenseRequest.subtitle")}
+        </Typography.Paragraph>
+
+        {licenseRequestQuery.isLoading ? (
+          <span className="text-slate-500">{t("common.loading")}</span>
+        ) : licenseRequest?.status === "pending" ? (
+          <Alert
+            type="warning"
+            showIcon
+            message={t("licenseRequest.statusPending")}
+            description={
+              licenseRequest.note ? (
+                <span>
+                  {t("adminLicenseRequests.note")}: {licenseRequest.note}
+                </span>
+              ) : undefined
+            }
+          />
+        ) : licenseRequest?.status === "approved" ? (
+          <Alert
+            type="success"
+            showIcon
+            message={t("licenseRequest.statusApproved")}
+            action={
+              <Button
+                size="small"
+                type="primary"
+                onClick={() => navigate("/my-license")}
+              >
+                {t("licenseRequest.goToMyLicense")}
+              </Button>
+            }
+          />
+        ) : licenseRequest?.status === "rejected" ? (
+          <Alert
+            type="error"
+            showIcon
+            className="mb-4"
+            message={t("licenseRequest.statusRejected")}
+            description={
+              licenseRequest.rejectReason
+                ? `${t("licenseRequest.rejectReason")}: ${licenseRequest.rejectReason}`
+                : undefined
+            }
+          />
+        ) : null}
+
+        {canSubmitLicenseRequest ? (
+          <div className="!space-y-3">
+            {licenseRequest?.status === "rejected" ? (
+              <Typography.Text type="secondary">
+                {t("licenseRequest.requestAgain")}
+              </Typography.Text>
+            ) : null}
+            <div>
+              <Typography.Text type="secondary" className="text-sm">
+                {t("licenseRequest.noteLabel")}
+              </Typography.Text>
+              <Input.TextArea
+                className="!mt-1"
+                rows={3}
+                value={requestNote}
+                onChange={(e) => setRequestNote(e.target.value)}
+                placeholder={t("licenseRequest.notePlaceholder")}
+                maxLength={500}
+              />
+            </div>
+            <Button
+              type="primary"
+              loading={licenseRequestMutation.isPending}
+              onClick={() => licenseRequestMutation.mutate(requestNote)}
+            >
+              {t("licenseRequest.submit")}
+            </Button>
+          </div>
+        ) : null}
+      </ProCard>
 
       <Typography.Title level={5} className="!mb-3">
         {t("pages.yourLicenseSection")}
