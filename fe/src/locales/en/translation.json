@@ -29,7 +29,8 @@
     "myLicense": "My License",
     "profile": "Profile",
     "users": "Users",
-    "licenses": "Licenses"
+    "licenses": "Licenses",
+    "licenseRequests": "License requests"
   },
   "common": {
     "loading": "Loading…",
@@ -125,6 +126,41 @@
     "resetDevice": "Reset device",
     "confirmResetDevice": "Remove the bound device from this account? The next login will register a new device.",
     "deviceReset": "Device unbound. The account can now log in from another device."
+  },
+  "licenseRequest": {
+    "title": "Request 1-day license",
+    "subtitle": "Submit a request for admin approval. Once approved, you receive a 1-day license and activate it on My License.",
+    "noteLabel": "Note (optional)",
+    "notePlaceholder": "Reason for request, contact info…",
+    "submit": "Submit request",
+    "submitted": "Request submitted. Admin will review it soon.",
+    "pendingExists": "You already have a pending request.",
+    "statusPending": "Waiting for admin approval",
+    "statusApproved": "Approved — open My License to activate",
+    "statusRejected": "Rejected",
+    "rejectReason": "Rejection reason",
+    "goToMyLicense": "Open My License",
+    "requestAgain": "Submit new request"
+  },
+  "adminLicenseRequests": {
+    "search": "Search",
+    "email": "Email",
+    "fullName": "Full name",
+    "note": "Note",
+    "createdAt": "Created at",
+    "reviewedAt": "Reviewed at",
+    "approve": "Approve",
+    "reject": "Reject",
+    "confirmApprove": "Approve and grant a 1-day license to this user?",
+    "confirmReject": "Reject this request?",
+    "rejectReasonLabel": "Rejection reason (optional)",
+    "approved": "Request approved",
+    "rejected": "Request rejected",
+    "statusPending": "Pending",
+    "statusApproved": "Approved",
+    "statusRejected": "Rejected",
+    "durationDays": "Duration",
+    "days": "days"
   },
   "pages": {
     "overviewSubtitle": "Live counts from your database.",

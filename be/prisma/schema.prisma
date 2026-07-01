@@ -31,6 +31,12 @@ enum PurchaseOrderStatus {
   expired
 }
 
+enum LicenseRequestStatus {
+  pending
+  approved
+  rejected
+}
+
 model User {
   id                   String           @id @default(uuid())
   email                String           @unique
@@ -47,8 +53,10 @@ model User {
   activatedLicenses License[]            @relation("LicenseActivator")
   activations       LicenseActivation[]
   refreshTokens     RefreshToken[]
-  auditLogs         AuditLog[]           @relation("AuditActor")
-  purchaseOrders    PurchaseOrder[]
+  auditLogs                AuditLog[]           @relation("AuditActor")
+  purchaseOrders           PurchaseOrder[]
+  licenseRequests          LicenseRequest[]     @relation("LicenseRequestUser")
+  reviewedLicenseRequests  LicenseRequest[]     @relation("LicenseRequestReviewer")
 }
 
 model PurchaseOrder {
@@ -96,8 +104,9 @@ model License {
   deletedBy   User? @relation("LicenseDeleter",   fields: [deletedById],   references: [id])
   activatedBy User? @relation("LicenseActivator", fields: [activatedById], references: [id])
 
-  activations        LicenseActivation[]
-  fulfilledFromOrder PurchaseOrder? @relation("PurchaseFulfilledLicense")
+  activations          LicenseActivation[]
+  fulfilledFromOrder   PurchaseOrder?   @relation("PurchaseFulfilledLicense")
+  fulfilledFromRequest LicenseRequest?  @relation("LicenseRequestFulfilled")
 
   @@index([status])
   @@index([activatedById])
@@ -138,6 +147,27 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model LicenseRequest {
+  id                 String               @id @default(uuid())
+  userId             String
+  durationDays       Int                  @default(1)
+  note               String?
+  status             LicenseRequestStatus @default(pending)
+  reviewedById       String?
+  reviewedAt         DateTime?
+  rejectReason       String?
+  fulfilledLicenseId String?              @unique
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  user             User     @relation("LicenseRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy       User?    @relation("LicenseRequestReviewer", fields: [reviewedById], references: [id])
+  fulfilledLicense License? @relation("LicenseRequestFulfilled", fields: [fulfilledLicenseId], references: [id])
+
+  @@index([userId])
+  @@index([status])
 }
 
 model AuditLog {

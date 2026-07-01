@@ -346,6 +346,37 @@ licenseRouter.get("/me", requireAuth, async (req, res, next) => {
       }
     }
 
+    if (!purchasedUnusedLicense) {
+      const approvedRequests = await prisma.licenseRequest.findMany({
+        where: {
+          userId,
+          status: "approved",
+          fulfilledLicenseId: { not: null },
+        },
+        orderBy: { reviewedAt: "desc" },
+        include: { fulfilledLicense: true },
+      });
+
+      for (const req of approvedRequests) {
+        const l = req.fulfilledLicense;
+        if (
+          l &&
+          l.status === "unused" &&
+          l.deletedAt === null &&
+          l.activatedById === null
+        ) {
+          purchasedUnusedLicense = {
+            id: l.id,
+            licenseKey: l.licenseKeyPlain,
+            licenseKeyPreview: l.licenseKeyPreview,
+            durationDays: l.durationDays,
+            purchaseOrderId: null,
+          };
+          break;
+        }
+      }
+    }
+
     if (!license) {
       if (req.auth!.role === "user" && !purchasedUnusedLicense) {
         return res.status(404).json({

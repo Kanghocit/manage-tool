@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import {
   DashboardOutlined,
+  FileTextOutlined,
   KeyOutlined,
   LogoutOutlined,
   SafetyOutlined,
@@ -29,6 +30,7 @@ import { AdminLicensesPage } from "../pages/admin/AdminLicensesPage";
 import { AdminLicenseCreatePage } from "../pages/admin/AdminLicenseCreatePage";
 import { AdminLicenseDetailPage } from "../pages/admin/AdminLicenseDetailPage";
 import { AdminUsersPage } from "../pages/admin/AdminUsersPage";
+import { AdminLicenseRequestsPage } from "../pages/admin/AdminLicenseRequestsPage";
 
 export function DashboardShell() {
   const location = useLocation();
@@ -59,6 +61,11 @@ export function DashboardShell() {
           path: "/admin/licenses",
           icon: <SafetyOutlined />,
           name: t("menu.licenses"),
+        },
+        {
+          path: "/admin/license-requests",
+          icon: <FileTextOutlined />,
+          name: t("menu.licenseRequests"),
         },
         { path: "/admin/users", icon: <TeamOutlined />, name: t("menu.users") },
       );
@@ -193,6 +200,14 @@ export function DashboardShell() {
               element={
                 <ProtectedRoute roles={["admin"]}>
                   <AdminLicensesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/license-requests"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <AdminLicenseRequestsPage />
                 </ProtectedRoute>
               }
             />

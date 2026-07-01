@@ -56,4 +56,10 @@ export const env = {
     bank: process.env.SEPAY_QR_BANK ?? '',
     template: process.env.SEPAY_QR_TEMPLATE ?? '',
   },
+
+  /** Telegram Bot API — notify admin on license request */
+  telegram: {
+    botToken: process.env.TELEGRAM_BOT_TOKEN ?? '',
+    chatId: process.env.TELEGRAM_CHAT_ID ?? '',
+  },
 }

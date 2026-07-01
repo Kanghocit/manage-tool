@@ -3,6 +3,7 @@ import {
   App as AntApp,
   Alert,
   Button,
+  Input,
   Modal,
   Statistic,
   Tag,
@@ -17,6 +18,7 @@ import {
   ShoppingCartOutlined,
   TeamOutlined,
   UserOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import { PageContainer, ProCard } from "@ant-design/pro-components";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -82,6 +84,20 @@ type AdminDashboardRes = {
   };
 };
 
+type LicenseRequestMeRes = {
+  success: boolean;
+  request: {
+    id: string;
+    durationDays: number;
+    note: string | null;
+    status: "pending" | "approved" | "rejected";
+    rejectReason: string | null;
+    fulfilledLicenseId: string | null;
+    createdAt: string;
+    reviewedAt: string | null;
+  } | null;
+};
+
 type LicenseMeRes = {
   success: boolean;
   license: {
@@ -114,6 +130,15 @@ function UserOverviewSection() {
 
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [requestNote, setRequestNote] = useState("");
+
+  const licenseRequestQuery = useQuery({
+    queryKey: ["license-request-me"],
+    queryFn: async () => {
+      const res = await api.get<LicenseRequestMeRes>("/api/license-requests/me");
+      return res.data.request;
+    },
+  });
 
   const pendingOrderQuery = useQuery({
     queryKey: ["purchase-order-pending"],
@@ -187,6 +212,32 @@ function UserOverviewSection() {
     },
   });
 
+  const licenseRequestMutation = useMutation({
+    mutationFn: async (note: string) => {
+      const res = await api.post<{ success: boolean; request: LicenseRequestMeRes["request"] }>(
+        "/api/license-requests",
+        { note: note.trim() || undefined },
+      );
+      return res.data.request;
+    },
+    onSuccess: () => {
+      setRequestNote("");
+      message.success(t("licenseRequest.submitted"));
+      void licenseRequestQuery.refetch();
+    },
+    onError: (err: unknown) => {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        message.warning(t("licenseRequest.pendingExists"));
+        void licenseRequestQuery.refetch();
+        return;
+      }
+      const msg = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string })?.message
+        : undefined;
+      message.error(typeof msg === "string" ? msg : t("common.loading"));
+    },
+  });
+
   const purchaseMutation = useMutation({
     mutationFn: async (packageCode: PackageCode) => {
       const res = await api.post<{ success: boolean; order: PurchaseOrderDto }>(
@@ -239,6 +290,9 @@ function UserOverviewSection() {
 
   const lic = userLicenseQuery.data?.license;
   const purchasedUnused = userLicenseQuery.data?.purchasedUnusedLicense ?? null;
+  const licenseRequest = licenseRequestQuery.data ?? null;
+  const canSubmitLicenseRequest =
+    !licenseRequest || licenseRequest.status !== "pending";
   const isFullLicenseKey = (key: string | null | undefined) =>
     !!key && !key.includes("*");
   const order = orderQuery.data;
@@ -314,6 +368,91 @@ function UserOverviewSection() {
           }
         />
       ) : null}
+
+      <ProCard
+        bordered
+        className="mb-6"
+        title={
+          <span className="flex items-center gap-2">
+            <FileTextOutlined />
+            {t("licenseRequest.title")}
+          </span>
+        }
+      >
+        <Typography.Paragraph type="secondary" className="!mb-4">
+          {t("licenseRequest.subtitle")}
+        </Typography.Paragraph>
+
+        {licenseRequestQuery.isLoading ? (
+          <span className="text-slate-500">{t("common.loading")}</span>
+        ) : licenseRequest?.status === "pending" ? (
+          <Alert
+            type="warning"
+            showIcon
+            message={t("licenseRequest.statusPending")}
+            description={
+              licenseRequest.note ? (
+                <span>
+                  {t("adminLicenseRequests.note")}: {licenseRequest.note}
+                </span>
+              ) : undefined
+            }
+          />
+        ) : licenseRequest?.status === "approved" ? (
+          <Alert
+            type="success"
+            showIcon
+            message={t("licenseRequest.statusApproved")}
+            action={
+              <Button size="small" type="primary" onClick={() => navigate("/my-license")}>
+                {t("licenseRequest.goToMyLicense")}
+              </Button>
+            }
+          />
+        ) : licenseRequest?.status === "rejected" ? (
+          <Alert
+            type="error"
+            showIcon
+            className="mb-4"
+            message={t("licenseRequest.statusRejected")}
+            description={
+              licenseRequest.rejectReason
+                ? `${t("licenseRequest.rejectReason")}: ${licenseRequest.rejectReason}`
+                : undefined
+            }
+          />
+        ) : null}
+
+        {canSubmitLicenseRequest ? (
+          <div className="space-y-3">
+            {licenseRequest?.status === "rejected" ? (
+              <Typography.Text type="secondary">
+                {t("licenseRequest.requestAgain")}
+              </Typography.Text>
+            ) : null}
+            <div>
+              <Typography.Text type="secondary" className="text-sm">
+                {t("licenseRequest.noteLabel")}
+              </Typography.Text>
+              <Input.TextArea
+                className="mt-1"
+                rows={3}
+                value={requestNote}
+                onChange={(e) => setRequestNote(e.target.value)}
+                placeholder={t("licenseRequest.notePlaceholder")}
+                maxLength={500}
+              />
+            </div>
+            <Button
+              type="primary"
+              loading={licenseRequestMutation.isPending}
+              onClick={() => licenseRequestMutation.mutate(requestNote)}
+            >
+              {t("licenseRequest.submit")}
+            </Button>
+          </div>
+        ) : null}
+      </ProCard>
 
       <Typography.Title level={4} className="mt-0 mb-2">
         {t("pages.purchaseTitle")}

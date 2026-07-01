@@ -29,7 +29,8 @@
     "myLicense": "License của tôi",
     "profile": "Hồ sơ",
     "users": "Người dùng",
-    "licenses": "License"
+    "licenses": "License",
+    "licenseRequests": "Yêu cầu license"
   },
   "common": {
     "loading": "Đang tải…",
@@ -125,6 +126,41 @@
     "resetDevice": "Gỡ thiết bị",
     "confirmResetDevice": "Gỡ thiết bị khỏi tài khoản này? Lần đăng nhập tiếp theo sẽ gắn máy mới.",
     "deviceReset": "Đã gỡ thiết bị. Tài khoản có thể đăng nhập trên máy khác."
+  },
+  "licenseRequest": {
+    "title": "Xin cấp license 1 ngày",
+    "subtitle": "Gửi yêu cầu cho admin duyệt. Sau khi duyệt, bạn nhận license 1 ngày và tự kích hoạt ở trang License của tôi.",
+    "noteLabel": "Ghi chú (tuỳ chọn)",
+    "notePlaceholder": "Lý do xin cấp, thông tin liên hệ…",
+    "submit": "Gửi yêu cầu",
+    "submitted": "Đã gửi yêu cầu. Admin sẽ xem xét sớm.",
+    "pendingExists": "Bạn đang có yêu cầu chờ duyệt.",
+    "statusPending": "Đang chờ admin duyệt",
+    "statusApproved": "Đã duyệt — vào License của tôi để kích hoạt",
+    "statusRejected": "Đã từ chối",
+    "rejectReason": "Lý do từ chối",
+    "goToMyLicense": "Mở License của tôi",
+    "requestAgain": "Gửi yêu cầu mới"
+  },
+  "adminLicenseRequests": {
+    "search": "Tìm kiếm",
+    "email": "Email",
+    "fullName": "Họ và tên",
+    "note": "Ghi chú",
+    "createdAt": "Ngày tạo",
+    "reviewedAt": "Duyệt lúc",
+    "approve": "Duyệt",
+    "reject": "Từ chối",
+    "confirmApprove": "Duyệt và cấp license 1 ngày cho user này?",
+    "confirmReject": "Từ chối yêu cầu này?",
+    "rejectReasonLabel": "Lý do từ chối (tuỳ chọn)",
+    "approved": "Đã duyệt yêu cầu",
+    "rejected": "Đã từ chối yêu cầu",
+    "statusPending": "Chờ duyệt",
+    "statusApproved": "Đã duyệt",
+    "statusRejected": "Đã từ chối",
+    "durationDays": "Thời hạn",
+    "days": "ngày"
   },
   "pages": {
     "overviewSubtitle": "Số liệu thật từ database.",

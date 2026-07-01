@@ -1,5 +1,7 @@
 # Deploy production (CI/CD)
 
+> Hướng dẫn chi tiết (VPS, Nginx, PM2, xử lý lỗi): **[DEPLOY-WEB.md](./DEPLOY-WEB.md)**
+
 Push lên nhánh **`production`** → GitHub Actions tự build và deploy lên VPS (PM2 + Nginx).
 
 ## GitHub Secrets (Settings → Secrets and variables → Actions)

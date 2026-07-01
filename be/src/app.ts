@@ -17,8 +17,10 @@ import { adminDashboardRouter } from './routes/adminDashboard'
 import { adminUsersRouter } from './routes/adminUsers'
 import { purchasesRouter } from './routes/purchases'
 import { adminPurchasesRouter } from './routes/adminPurchases'
+import { adminLicenseRequestsRouter } from './routes/adminLicenseRequests'
 import { sepayWebhookRouter } from './routes/sepayWebhook'
 import { privacyRouter } from './routes/privacy'
+import { licenseRequestsRouter } from './routes/licenseRequests'
 
 export const createApp = () => {
   const app = express();
@@ -110,6 +112,16 @@ export const createApp = () => {
     adminUsersRouter,
   )
   app.use(
+    '/api/admin/license-requests',
+    rateLimit({
+      windowMs: 60 * 1000,
+      limit: 120,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+    adminLicenseRequestsRouter,
+  )
+  app.use(
     '/api/purchases',
     rateLimit({
       windowMs: 60 * 1000,
@@ -118,6 +130,16 @@ export const createApp = () => {
       legacyHeaders: false,
     }),
     purchasesRouter,
+  )
+  app.use(
+    '/api/license-requests',
+    rateLimit({
+      windowMs: 60 * 1000,
+      limit: 60,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+    licenseRequestsRouter,
   )
   app.use('/', privacyRouter)
 
