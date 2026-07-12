@@ -18,14 +18,14 @@ const deviceIdSchema = z.string().min(8).max(128);
 const loginSchema = z.object({
   email: z.email(),
   password: z.string().min(6),
-  deviceId: deviceIdSchema,
+  deviceId: deviceIdSchema.optional(),
 });
 
 const registerSchema = z.object({
   fullName: z.string().min(2),
   email: z.email(),
   password: z.string().min(6),
-  deviceId: deviceIdSchema,
+  deviceId: deviceIdSchema.optional(),
 });
 
 const refreshSchema = z.object({
@@ -103,18 +103,30 @@ authRouter.post("/login", async (req, res, next) => {
       });
     }
 
-    if (user.role === 'user') {
+    if (user.role === "user" && parsed.data.deviceId) {
+      const deviceId = parsed.data.deviceId;
       if (!user.registeredDeviceId) {
-        await prisma.user.update({
+        await prisma.user.updateMany({
+          where: { id: user.id, registeredDeviceId: null },
+          data: { registeredDeviceId: deviceId },
+        });
+        const refreshed = await prisma.user.findUnique({
           where: { id: user.id },
-          data: { registeredDeviceId: parsed.data.deviceId },
-        })
-      } else if (user.registeredDeviceId !== parsed.data.deviceId) {
+          select: { registeredDeviceId: true },
+        });
+        if (refreshed?.registeredDeviceId !== deviceId) {
+          return res.status(403).json({
+            success: false,
+            code: "DEVICE_MISMATCH",
+            message: "This account is bound to another device.",
+          });
+        }
+      } else if (user.registeredDeviceId !== deviceId) {
         return res.status(403).json({
           success: false,
-          code: 'DEVICE_MISMATCH',
-          message: 'This account is bound to another device.',
-        })
+          code: "DEVICE_MISMATCH",
+          message: "This account is bound to another device.",
+        });
       }
     }
 
@@ -181,7 +193,6 @@ authRouter.post("/register", async (req, res, next) => {
         fullName: parsed.data.fullName,
         role: "user",
         status: "active",
-        registeredDeviceId: parsed.data.deviceId,
       },
     });
 

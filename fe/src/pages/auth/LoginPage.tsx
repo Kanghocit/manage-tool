@@ -4,7 +4,6 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
-import { getOrCreateDeviceId } from "../../lib/deviceId";
 import { useAuthStore } from "../../store/useAuthStore";
 import { AuthShell } from "./AuthShell";
 
@@ -29,12 +28,7 @@ export function LoginPage() {
 
   const mutation = useMutation({
     mutationFn: (values: { email: string; password: string }) =>
-      api
-        .post("/api/auth/login", {
-          ...values,
-          deviceId: getOrCreateDeviceId(),
-        })
-        .then((res) => res.data),
+      api.post("/api/auth/login", values).then((res) => res.data),
     onSuccess: (data: {
       user: {
         id: string;

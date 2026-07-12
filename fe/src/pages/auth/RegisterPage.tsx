@@ -4,7 +4,6 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
-import { getOrCreateDeviceId } from "../../lib/deviceId";
 import { useAuthStore } from "../../store/useAuthStore";
 import { AuthShell } from "./AuthShell";
 
@@ -26,12 +25,7 @@ export function RegisterPage() {
 
   const mutation = useMutation({
     mutationFn: (values: { fullName: string; email: string; password: string }) =>
-      api
-        .post("/api/auth/register", {
-          ...values,
-          deviceId: getOrCreateDeviceId(),
-        })
-        .then((res) => res.data),
+      api.post("/api/auth/register", values).then((res) => res.data),
     onSuccess: (data: {
       user: { id: string; email: string; fullName: string; role: "admin" | "user"; status: "active" | "blocked" };
       accessToken: string;
