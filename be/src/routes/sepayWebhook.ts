@@ -44,8 +44,8 @@ function matchesOrder(
   if (!needle) return false
   const hay = `${normalizeMemo(content)} ${normalizeMemo(description)}`
   if (hay.includes(needle)) return true
-  // Some banks truncate or prefix the memo — try DH token substring
-  const m = transferContent.match(/^(DH[A-F0-9]+)/i)
+  // Some banks truncate or prefix the memo — try DH + numeric suffix
+  const m = transferContent.match(/^(DH[0-9]+)/i)
   if (m?.[1] && hay.includes(normalizeMemo(m[1]))) return true
   return false
 }

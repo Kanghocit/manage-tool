@@ -59,9 +59,20 @@ export function resolvePurchaseQrImageUrl(
   return null;
 }
 
+/** SePay payment code: prefix DH + integer suffix (dashboard: 3–10 digits; we use 10). */
+const TRANSFER_SUFFIX_LENGTH = 10;
+
+function randomNumericSuffix(length: number): string {
+  let s = String(crypto.randomInt(1, 10));
+  for (let i = 1; i < length; i += 1) {
+    s += String(crypto.randomInt(0, 10));
+  }
+  return s;
+}
+
 async function uniqueTransferContent(): Promise<string> {
   for (let i = 0; i < 12; i += 1) {
-    const token = `DH${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
+    const token = `DH${randomNumericSuffix(TRANSFER_SUFFIX_LENGTH)}`;
     const clash = await prisma.purchaseOrder.findUnique({
       where: { transferContent: token },
       select: { id: true },
