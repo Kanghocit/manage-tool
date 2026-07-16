@@ -24,6 +24,15 @@
     "passwordRequired": "Please enter your password.",
     "fullNameRequired": "Please enter your full name."
   },
+  "profile": {
+    "changePassword": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "passwordMismatch": "Passwords do not match.",
+    "passwordChanged": "Password changed successfully.",
+    "submit": "Update password"
+  },
   "menu": {
     "overview": "Overview",
     "myLicense": "My License",

@@ -12,6 +12,7 @@ import { env } from "../config/env";
 import { parseDurationToMs } from "../utils/duration";
 import { sha256Hex } from "../utils/crypto";
 import rateLimit from "express-rate-limit";
+import { requireAuth } from "../middleware/auth";
 
 const deviceIdSchema = z.string().min(8).max(128);
 
@@ -34,6 +35,11 @@ const refreshSchema = z.object({
 
 const logoutSchema = z.object({
   refreshToken: z.string().min(10),
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(6),
+  newPassword: z.string().min(6),
 });
 
 const sanitizeUser = (user: {
@@ -317,6 +323,63 @@ authRouter.post("/logout", async (req, res, next) => {
     });
 
     return res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post("/change-password", requireAuth, async (req, res, next) => {
+  try {
+    const parsed = changePasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_PAYLOAD",
+        message: "Invalid change password payload.",
+      });
+    }
+
+    const userId = req.auth!.userId;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        code: "NOT_FOUND",
+        message: "User not found.",
+      });
+    }
+    if (user.status !== "active") {
+      return res.status(403).json({
+        success: false,
+        code: "USER_BLOCKED",
+        message: "User is blocked.",
+      });
+    }
+
+    const ok = await bcrypt.compare(
+      parsed.data.currentPassword,
+      user.passwordHash,
+    );
+    if (!ok) {
+      return res.status(401).json({
+        success: false,
+        code: "INVALID_CREDENTIALS",
+        message: "Current password is incorrect.",
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+
+    await prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    return res.json({ success: true, message: "Password changed." });
   } catch (err) {
     next(err);
   }

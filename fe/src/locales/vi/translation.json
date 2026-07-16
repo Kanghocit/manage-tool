@@ -24,6 +24,15 @@
     "passwordRequired": "Vui lòng nhập mật khẩu.",
     "fullNameRequired": "Vui lòng nhập họ và tên."
   },
+  "profile": {
+    "changePassword": "Đổi mật khẩu",
+    "currentPassword": "Mật khẩu hiện tại",
+    "newPassword": "Mật khẩu mới",
+    "confirmPassword": "Xác nhận mật khẩu mới",
+    "passwordMismatch": "Mật khẩu xác nhận không khớp.",
+    "passwordChanged": "Đổi mật khẩu thành công.",
+    "submit": "Cập nhật mật khẩu"
+  },
   "menu": {
     "overview": "Tổng quan",
     "myLicense": "License của tôi",
