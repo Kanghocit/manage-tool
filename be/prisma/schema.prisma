@@ -57,6 +57,100 @@ model User {
   purchaseOrders           PurchaseOrder[]
   licenseRequests          LicenseRequest[]     @relation("LicenseRequestUser")
   reviewedLicenseRequests  LicenseRequest[]     @relation("LicenseRequestReviewer")
+  automationTools          AutomationTool[]     @relation("AutomationToolCreator")
+  browserProfiles          BrowserProfile[]     @relation("BrowserProfileCreator")
+  automationRuns           AutomationRun[]      @relation("AutomationRunCreator")
+}
+
+enum AutomationRunStatus {
+  pending
+  running
+  completed
+  failed
+  cancelled
+}
+
+enum AutomationSessionStatus {
+  pending
+  running
+  completed
+  failed
+  cancelled
+}
+
+model AutomationTool {
+  id               String    @id @default(uuid())
+  name             String
+  description      String?
+  steps            Json
+  defaultLoopCount Int       @default(1)
+  createdById      String
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  createdBy User            @relation("AutomationToolCreator", fields: [createdById], references: [id])
+  runs      AutomationRun[]
+
+  @@index([createdById])
+  @@index([deletedAt])
+}
+
+model BrowserProfile {
+  id             String   @id @default(uuid())
+  name           String
+  userAgent      String?
+  proxyUrl       String?
+  viewportWidth  Int?
+  viewportHeight Int?
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  createdBy User                     @relation("BrowserProfileCreator", fields: [createdById], references: [id])
+  sessions  AutomationRunSession[]
+
+  @@index([createdById])
+}
+
+model AutomationRun {
+  id          String              @id @default(uuid())
+  toolId      String
+  loopCount   Int
+  status      AutomationRunStatus @default(pending)
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdById String
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  tool      AutomationTool         @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  createdBy User                   @relation("AutomationRunCreator", fields: [createdById], references: [id])
+  sessions  AutomationRunSession[]
+
+  @@index([toolId])
+  @@index([status])
+  @@index([createdById])
+}
+
+model AutomationRunSession {
+  id          String                  @id @default(uuid())
+  runId       String
+  profileId   String
+  status      AutomationSessionStatus @default(pending)
+  currentLoop Int                     @default(0)
+  log         String                  @default("")
+  error       String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  run     AutomationRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  profile BrowserProfile @relation(fields: [profileId], references: [id])
+
+  @@index([runId])
+  @@index([profileId])
 }
 
 model PurchaseOrder {

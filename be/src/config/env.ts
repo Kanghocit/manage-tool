@@ -62,4 +62,16 @@ export const env = {
     botToken: process.env.TELEGRAM_BOT_TOKEN ?? '',
     chatId: process.env.TELEGRAM_CHAT_ID ?? '',
   },
+
+  /**
+   * Playwright preview: open a real Chrome window you can click/type in.
+   * Default true in development. Tool runs always stay headless.
+   * On a headless VPS this must be false (or use XVFB) — window opens on the API host.
+   */
+  automation: {
+    browserHeaded:
+      (process.env.AUTOMATION_BROWSER_HEADED ??
+        (process.env.NODE_ENV === 'production' ? 'false' : 'true')
+      ).toLowerCase() === 'true',
+  },
 }

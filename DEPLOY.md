@@ -39,6 +39,9 @@ cp be/.env.example be/.env
 pm2 start ecosystem.config.cjs
 pm2 save
 pm2 startup   # làm theo hướng dẫn pm2 in ra
+
+# Playwright (Automation Tools — admin chạy browser trên server)
+cd be && npx playwright install chromium --with-deps && cd ..
 ```
 
 Nginx: root FE → `fe/dist`; proxy `/api` và `/hooks/sepay-payments` → `http://127.0.0.1:4000`.

@@ -2,8 +2,10 @@ import { useMemo } from "react";
 import {
   DashboardOutlined,
   FileTextOutlined,
+  GlobalOutlined,
   KeyOutlined,
   LogoutOutlined,
+  RobotOutlined,
   SafetyOutlined,
   TeamOutlined,
   UserOutlined,
@@ -31,6 +33,10 @@ import { AdminLicenseCreatePage } from "../pages/admin/AdminLicenseCreatePage";
 import { AdminLicenseDetailPage } from "../pages/admin/AdminLicenseDetailPage";
 import { AdminUsersPage } from "../pages/admin/AdminUsersPage";
 import { AdminLicenseRequestsPage } from "../pages/admin/AdminLicenseRequestsPage";
+import { ToolsListPage } from "../pages/admin/tools/ToolsListPage";
+import { ToolEditorPage } from "../pages/admin/tools/ToolEditorPage";
+import { BrowserProfilesPage } from "../pages/admin/tools/BrowserProfilesPage";
+import { RunDetailPage } from "../pages/admin/tools/RunDetailPage";
 
 export function DashboardShell() {
   const location = useLocation();
@@ -66,6 +72,16 @@ export function DashboardShell() {
           path: "/admin/license-requests",
           icon: <FileTextOutlined />,
           name: t("menu.licenseRequests"),
+        },
+        {
+          path: "/admin/tools",
+          icon: <RobotOutlined />,
+          name: t("menu.automationTools"),
+        },
+        {
+          path: "/admin/browser-profiles",
+          icon: <GlobalOutlined />,
+          name: t("menu.browserProfiles"),
         },
         { path: "/admin/users", icon: <TeamOutlined />, name: t("menu.users") },
       );
@@ -200,6 +216,46 @@ export function DashboardShell() {
               element={
                 <ProtectedRoute roles={["admin"]}>
                   <AdminLicensesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/tools/runs/:id"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <RunDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/tools/create"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <ToolEditorPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/tools/:id/edit"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <ToolEditorPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/tools"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <ToolsListPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/browser-profiles"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <BrowserProfilesPage />
                 </ProtectedRoute>
               }
             />

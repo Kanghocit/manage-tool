@@ -18,6 +18,9 @@ import { adminUsersRouter } from './routes/adminUsers'
 import { purchasesRouter } from './routes/purchases'
 import { adminPurchasesRouter } from './routes/adminPurchases'
 import { adminLicenseRequestsRouter } from './routes/adminLicenseRequests'
+import { adminToolsRouter } from './routes/adminTools'
+import { adminProfilesRouter } from './routes/adminProfiles'
+import { adminRunsRouter } from './routes/adminRuns'
 import { sepayWebhookRouter } from './routes/sepayWebhook'
 import { privacyRouter } from './routes/privacy'
 import { licenseRequestsRouter } from './routes/licenseRequests'
@@ -35,7 +38,7 @@ export const createApp = () => {
         return callback(new Error(`Origin ${origin} is not allowed by CORS`));
       },
       credentials: true,
-      methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization"],
     }),
   );
@@ -120,6 +123,36 @@ export const createApp = () => {
       legacyHeaders: false,
     }),
     adminLicenseRequestsRouter,
+  )
+  app.use(
+    '/api/admin/tools',
+    rateLimit({
+      windowMs: 60 * 1000,
+      limit: 120,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+    adminToolsRouter,
+  )
+  app.use(
+    '/api/admin/browser-profiles',
+    rateLimit({
+      windowMs: 60 * 1000,
+      limit: 120,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+    adminProfilesRouter,
+  )
+  app.use(
+    '/api/admin/runs',
+    rateLimit({
+      windowMs: 60 * 1000,
+      limit: 120,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+    adminRunsRouter,
   )
   app.use(
     '/api/purchases',

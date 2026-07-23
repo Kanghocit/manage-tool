@@ -6,6 +6,8 @@ export type MenuKey =
   | "/admin/users"
   | "/admin/licenses"
   | "/admin/license-requests"
+  | "/admin/tools"
+  | "/admin/browser-profiles"
   | "/profile";
 
 export type NavRoute = { path: MenuKey; name: string; icon: ReactNode };
