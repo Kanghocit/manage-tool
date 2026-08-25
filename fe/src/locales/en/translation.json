@@ -39,9 +39,7 @@
     "profile": "Profile",
     "users": "Users",
     "licenses": "Licenses",
-    "licenseRequests": "License requests",
-    "automationTools": "Automation Tools",
-    "browserProfiles": "Browser Profiles"
+    "licenseRequests": "License requests"
   },
   "common": {
     "loading": "Loading…",
@@ -136,7 +134,30 @@
     "deviceNone": "None",
     "resetDevice": "Reset device",
     "confirmResetDevice": "Remove the bound device from this account? The next login will register a new device.",
-    "deviceReset": "Device unbound. The account can now log in from another device."
+    "deviceReset": "Device unbound. The account can now log in from another device.",
+    "tabAll": "All",
+    "tabNew": "New users",
+    "createUser": "Create user",
+    "createSubmit": "Create",
+    "createWithLicense": "Create license with account",
+    "password": "Password",
+    "passwordHint": "At least 6 characters",
+    "licenseKey": "License key",
+    "createSuccessTitle": "Account created",
+    "createSuccessHint": "Copy the details below and share with the user.",
+    "createValidation": "Please fill in all fields (password at least 6 characters).",
+    "copied": "Copied",
+    "copyAll": "Copy all",
+    "registrationSource": "Source",
+    "sourceSelf": "Self-registered",
+    "sourceAdmin": "Admin created",
+    "emailStatus": "Email",
+    "emailPending": "Not sent",
+    "emailSentStatus": "Sent",
+    "emailNotApplicable": "—",
+    "sendEmail": "Send email",
+    "confirmSendEmail": "Send welcome email with trial license to this user?",
+    "emailSent": "Welcome email sent"
   },
   "licenseRequest": {
     "title": "Request 1-day license",

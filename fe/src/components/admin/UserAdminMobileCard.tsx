@@ -10,6 +10,9 @@ export type UserAdminRow = {
   status: "active" | "blocked";
   createdAt: string;
   registeredDeviceId: string | null;
+  registrationSource: "self" | "admin";
+  welcomeEmailSentAt: string | null;
+  hasWelcomeTrialLicense: boolean;
 };
 
 type Props = {
@@ -18,9 +21,11 @@ type Props = {
   blockLoading: boolean;
   unblockLoading: boolean;
   resetDeviceLoading: boolean;
+  sendEmailLoading: boolean;
   onBlock: () => void;
   onUnblock: () => void;
   onResetDevice: () => void;
+  onSendEmail?: () => void;
 };
 
 export function UserAdminMobileCard({
@@ -29,9 +34,11 @@ export function UserAdminMobileCard({
   blockLoading,
   unblockLoading,
   resetDeviceLoading,
+  sendEmailLoading,
   onBlock,
   onUnblock,
   onResetDevice,
+  onSendEmail,
 }: Props) {
   const { t } = useTranslation();
   const statusColor = row.status === "active" ? "green" : "red";
@@ -43,6 +50,18 @@ export function UserAdminMobileCard({
       <Space wrap className="mb-2">
         <Tag>{t(`roles.${row.role}`)}</Tag>
         <Tag color={statusColor}>{row.status}</Tag>
+        <Tag>
+          {row.registrationSource === "admin"
+            ? t("adminUsers.sourceAdmin")
+            : t("adminUsers.sourceSelf")}
+        </Tag>
+        {row.registrationSource === "self" ? (
+          row.welcomeEmailSentAt ? (
+            <Tag color="green">{t("adminUsers.emailSentStatus")}</Tag>
+          ) : (
+            <Tag color="orange">{t("adminUsers.emailPending")}</Tag>
+          )
+        ) : null}
         {row.registeredDeviceId ? (
           <Tooltip title={row.registeredDeviceId}>
             <Tag color="blue">{t("adminUsers.deviceBound")}</Tag>
@@ -55,6 +74,13 @@ export function UserAdminMobileCard({
         {t("adminUsers.createdAt")}: {dayjs(row.createdAt).format("YYYY-MM-DD HH:mm")}
       </div>
       <Space direction="vertical" className="admin-mobile-actions w-full" size="small">
+        {onSendEmail ? (
+          <Popconfirm title={t("adminUsers.confirmSendEmail")} onConfirm={onSendEmail}>
+            <Button block type="primary" loading={sendEmailLoading}>
+              {t("adminUsers.sendEmail")}
+            </Button>
+          </Popconfirm>
+        ) : null}
         {row.status === "blocked" ? (
           <Popconfirm title={t("adminUsers.confirmUnblock")} onConfirm={onUnblock}>
             <Button block loading={unblockLoading}>

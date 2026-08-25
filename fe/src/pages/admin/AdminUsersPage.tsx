@@ -8,6 +8,7 @@ import {
   Popconfirm,
   Select,
   Spin,
+  Tabs,
   Tag,
   Tooltip,
 } from "antd";
@@ -18,13 +19,51 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ActionType } from "@ant-design/pro-components";
 import dayjs from "dayjs";
+import axios from "axios";
 
+import { CreateUserModal } from "../../components/admin/CreateUserModal";
 import { UserAdminMobileCard, type UserAdminRow } from "../../components/admin/UserAdminMobileCard";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { api } from "../../lib/api";
 import { useAuthStore } from "../../store/useAuthStore";
 
 type UserRow = UserAdminRow;
+type UserTab = "all" | "new";
+
+type FetchParams = {
+  page: number;
+  limit: number;
+  keyword?: string;
+  role?: string;
+  status?: string;
+  tab: UserTab;
+};
+
+async function fetchUsers(params: FetchParams) {
+  const { data } = await api.get<{
+    success: boolean;
+    items: UserRow[];
+    total: number;
+  }>("/api/admin/users", {
+    params: {
+      page: params.page,
+      limit: params.limit,
+      keyword: params.keyword,
+      role: params.role,
+      status: params.status,
+      ...(params.tab === "new" ? { welcomeEmailPending: true } : {}),
+    },
+  });
+  return data;
+}
+
+function canSendWelcomeEmail(row: UserRow) {
+  return (
+    row.registrationSource === "self" &&
+    !row.welcomeEmailSentAt &&
+    row.hasWelcomeTrialLicense
+  );
+}
 
 type MobileFilters = {
   keyword?: string;
@@ -32,22 +71,7 @@ type MobileFilters = {
   status?: string;
 };
 
-async function fetchUsers(params: {
-  page: number;
-  limit: number;
-  keyword?: string;
-  role?: string;
-  status?: string;
-}) {
-  const { data } = await api.get<{
-    success: boolean;
-    items: UserRow[];
-    total: number;
-  }>("/api/admin/users", { params });
-  return data;
-}
-
-function AdminUsersMobileList() {
+function AdminUsersMobileList({ tab }: { tab: UserTab }) {
   const { t } = useTranslation();
   const { message } = AntApp.useApp();
   const queryClient = useQueryClient();
@@ -58,7 +82,7 @@ function AdminUsersMobileList() {
   const limit = 10;
 
   const listQuery = useQuery({
-    queryKey: ["admin-users-mobile", page, limit, filters],
+    queryKey: ["admin-users-mobile", tab, page, limit, filters],
     queryFn: () =>
       fetchUsers({
         page,
@@ -66,6 +90,7 @@ function AdminUsersMobileList() {
         keyword: filters.keyword,
         role: filters.role,
         status: filters.status,
+        tab,
       }),
   });
 
@@ -100,6 +125,21 @@ function AdminUsersMobileList() {
       invalidate();
     },
     onError: (e: Error) => message.error(e.message),
+  });
+
+  const sendEmailMut = useMutation({
+    mutationFn: (userId: string) =>
+      api.post(`/api/admin/users/${userId}/send-welcome-email`, {}),
+    onSuccess: () => {
+      message.success(t("adminUsers.emailSent"));
+      invalidate();
+    },
+    onError: (err: Error) => {
+      const apiMessage = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string } | undefined)?.message
+        : undefined;
+      message.error(apiMessage ?? err.message);
+    },
   });
 
   const onSearch = (values: MobileFilters) => {
@@ -159,9 +199,15 @@ function AdminUsersMobileList() {
                 blockLoading={blockMut.isPending}
                 unblockLoading={unblockMut.isPending}
                 resetDeviceLoading={resetDeviceMut.isPending}
+                sendEmailLoading={sendEmailMut.isPending}
                 onBlock={() => blockMut.mutate(row.id)}
                 onUnblock={() => unblockMut.mutate(row.id)}
                 onResetDevice={() => resetDeviceMut.mutate(row.id)}
+                onSendEmail={
+                  canSendWelcomeEmail(row)
+                    ? () => sendEmailMut.mutate(row.id)
+                    : undefined
+                }
               />
             </List.Item>
           )}
@@ -183,7 +229,7 @@ function AdminUsersMobileList() {
   );
 }
 
-function AdminUsersDesktopTable() {
+function AdminUsersDesktopTable({ tab }: { tab: UserTab }) {
   const { t } = useTranslation();
   const { message } = AntApp.useApp();
   const currentUser = useAuthStore((s) => s.user);
@@ -217,6 +263,21 @@ function AdminUsersDesktopTable() {
     onError: (e: Error) => message.error(e.message),
   });
 
+  const sendEmailMut = useMutation({
+    mutationFn: (userId: string) =>
+      api.post(`/api/admin/users/${userId}/send-welcome-email`, {}),
+    onSuccess: () => {
+      message.success(t("adminUsers.emailSent"));
+      actionRef.current?.reload();
+    },
+    onError: (err: Error) => {
+      const apiMessage = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string } | undefined)?.message
+        : undefined;
+      message.error(apiMessage ?? err.message);
+    },
+  });
+
   const statusColor = (s: UserRow["status"]) => (s === "active" ? "green" : "red");
 
   const columns: ProColumns<UserRow>[] = [
@@ -242,6 +303,35 @@ function AdminUsersDesktopTable() {
       title: t("adminUsers.search"),
       dataIndex: "keyword",
       hideInTable: true,
+    },
+    {
+      title: t("adminUsers.registrationSource"),
+      dataIndex: "registrationSource",
+      search: false,
+      width: 120,
+      render: (_, row) =>
+        row.registrationSource === "admin"
+          ? t("adminUsers.sourceAdmin")
+          : t("adminUsers.sourceSelf"),
+    },
+    {
+      title: t("adminUsers.emailStatus"),
+      dataIndex: "welcomeEmailSentAt",
+      search: false,
+      width: 140,
+      render: (_, row) => {
+        if (row.registrationSource !== "self") {
+          return <Tag>{t("adminUsers.emailNotApplicable")}</Tag>;
+        }
+        if (row.welcomeEmailSentAt) {
+          return (
+            <Tooltip title={dayjs(row.welcomeEmailSentAt).format("YYYY-MM-DD HH:mm")}>
+              <Tag color="green">{t("adminUsers.emailSentStatus")}</Tag>
+            </Tooltip>
+          );
+        }
+        return <Tag color="orange">{t("adminUsers.emailPending")}</Tag>;
+      },
     },
     {
       title: t("adminUsers.role"),
@@ -286,11 +376,25 @@ function AdminUsersDesktopTable() {
     {
       title: t("common.actions"),
       valueType: "option",
-      width: 240,
+      width: 300,
       search: false,
       render: (_, row) => {
         const isSelf = currentUser?.id === row.id;
         const actions: React.ReactNode[] = [];
+
+        if (canSendWelcomeEmail(row)) {
+          actions.push(
+            <Popconfirm
+              key="send-email"
+              title={t("adminUsers.confirmSendEmail")}
+              onConfirm={() => sendEmailMut.mutate(row.id)}
+            >
+              <Button type="link" loading={sendEmailMut.isPending}>
+                {t("adminUsers.sendEmail")}
+              </Button>
+            </Popconfirm>,
+          );
+        }
 
         if (row.status === "blocked") {
           actions.push(
@@ -340,6 +444,7 @@ function AdminUsersDesktopTable() {
 
   return (
     <ProTable<UserRow>
+      key={tab}
       actionRef={actionRef}
       rowKey="id"
       columns={columns}
@@ -352,6 +457,7 @@ function AdminUsersDesktopTable() {
           keyword: typeof params.keyword === "string" ? params.keyword : undefined,
           role: typeof params.role === "string" ? params.role : undefined,
           status: typeof params.status === "string" ? params.status : undefined,
+          tab,
         });
         return { data: data.items, total: data.total, success: true };
       }}
@@ -364,10 +470,51 @@ function AdminUsersDesktopTable() {
 export function AdminUsersPage() {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
+  const [tab, setTab] = useState<UserTab>("all");
+  const [createOpen, setCreateOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  const reload = () => {
+    void queryClient.invalidateQueries({ queryKey: ["admin-users-mobile"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+  };
+
+  const tabItems = [
+    {
+      key: "all",
+      label: t("adminUsers.tabAll"),
+      children: isMobile ? (
+        <AdminUsersMobileList tab="all" />
+      ) : (
+        <AdminUsersDesktopTable tab="all" />
+      ),
+    },
+    {
+      key: "new",
+      label: t("adminUsers.tabNew"),
+      children: isMobile ? (
+        <AdminUsersMobileList tab="new" />
+      ) : (
+        <AdminUsersDesktopTable tab="new" />
+      ),
+    },
+  ];
 
   return (
-    <PageContainer title={t("menu.users")}>
-      {isMobile ? <AdminUsersMobileList /> : <AdminUsersDesktopTable />}
+    <PageContainer
+      title={t("menu.users")}
+      extra={
+        <Button type="primary" onClick={() => setCreateOpen(true)}>
+          {t("adminUsers.createUser")}
+        </Button>
+      }
+    >
+      <Tabs activeKey={tab} items={tabItems} onChange={(k) => setTab(k as UserTab)} />
+      <CreateUserModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSuccess={reload}
+      />
     </PageContainer>
   );
 }

@@ -31,6 +31,19 @@ export const env = {
 
   allowRegister: (process.env.ALLOW_REGISTER ?? 'false').toLowerCase() === 'true',
 
+  /** Public app URL for links in emails */
+  appPublicUrl: process.env.APP_PUBLIC_URL ?? 'http://localhost:5173',
+
+  /** SMTP (nodemailer) — optional; required to send welcome emails */
+  smtp: {
+    host: process.env.SMTP_HOST ?? '',
+    port: Number(process.env.SMTP_PORT ?? 587),
+    secure: (process.env.SMTP_SECURE ?? 'false').toLowerCase() === 'true',
+    user: process.env.SMTP_USER ?? '',
+    pass: process.env.SMTP_PASS ?? '',
+    from: process.env.SMTP_FROM ?? 'Kang Tools <noreply@example.com>',
+  },
+
   /** VietQR image (img.vietqr.io) — bank code e.g. MB, VCB */
   vietQr: {
     bankCode: process.env.VIETQR_BANK_CODE ?? '',
@@ -63,15 +76,8 @@ export const env = {
     chatId: process.env.TELEGRAM_CHAT_ID ?? '',
   },
 
-  /**
-   * Playwright preview: open a real Chrome window you can click/type in.
-   * Default true in development. Tool runs always stay headless.
-   * On a headless VPS this must be false (or use XVFB) — window opens on the API host.
-   */
-  automation: {
-    browserHeaded:
-      (process.env.AUTOMATION_BROWSER_HEADED ??
-        (process.env.NODE_ENV === 'production' ? 'false' : 'true')
-      ).toLowerCase() === 'true',
-  },
+}
+
+export function isSmtpConfigured(): boolean {
+  return Boolean(env.smtp.host && env.smtp.user && env.smtp.pass)
 }

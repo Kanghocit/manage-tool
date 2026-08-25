@@ -130,6 +130,7 @@ export function AdminLicenseCreatePage() {
             name="durationPreset"
             label={t("adminLicenses.durationPreset")}
             options={[
+              { value: 1, label: `1 ${t("adminLicenses.days")}` },
               { value: 7, label: `7 ${t("adminLicenses.days")}` },
               { value: 30, label: `30 ${t("adminLicenses.days")}` },
               { value: 90, label: `90 ${t("adminLicenses.days")}` },

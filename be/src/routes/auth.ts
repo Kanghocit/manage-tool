@@ -3,6 +3,7 @@ import express from "express";
 import { z } from "zod";
 
 import { prisma } from "../lib/prisma";
+import { createUnusedLicense } from "../lib/createUnusedLicense";
 import {
   signAccessToken,
   signRefreshToken,
@@ -192,29 +193,54 @@ authRouter.post("/register", async (req, res, next) => {
     }
 
     const passwordHash = await bcrypt.hash(parsed.data.password, 10);
-    const user = await prisma.user.create({
-      data: {
-        email: parsed.data.email,
-        passwordHash,
-        fullName: parsed.data.fullName,
-        role: "user",
-        status: "active",
+
+    const { user, accessToken, refreshToken } = await prisma.$transaction(
+      async (tx) => {
+        const createdUser = await tx.user.create({
+          data: {
+            email: parsed.data.email,
+            passwordHash,
+            fullName: parsed.data.fullName,
+            role: "user",
+            status: "active",
+            registrationSource: "self",
+          },
+        });
+
+        const trialLicense = await createUnusedLicense(tx, {
+          durationDays: 1,
+          maxDevices: 1,
+          notes: "Welcome trial",
+        });
+
+        const updatedUser = await tx.user.update({
+          where: { id: createdUser.id },
+          data: { welcomeTrialLicenseId: trialLicense.id },
+        });
+
+        const accessToken = signAccessToken({
+          sub: updatedUser.id,
+          role: updatedUser.role,
+        });
+        const refreshToken = signRefreshToken({
+          sub: updatedUser.id,
+          role: updatedUser.role,
+        });
+
+        const expiresAt = new Date(
+          Date.now() + parseDurationToMs(env.jwt.refreshTtl),
+        );
+        await tx.refreshToken.create({
+          data: {
+            userId: updatedUser.id,
+            tokenHash: refreshTokenHash(refreshToken),
+            expiresAt,
+          },
+        });
+
+        return { user: updatedUser, accessToken, refreshToken };
       },
-    });
-
-    const accessToken = signAccessToken({ sub: user.id, role: user.role });
-    const refreshToken = signRefreshToken({ sub: user.id, role: user.role });
-
-    const expiresAt = new Date(
-      Date.now() + parseDurationToMs(env.jwt.refreshTtl),
     );
-    await prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        tokenHash: refreshTokenHash(refreshToken),
-        expiresAt,
-      },
-    });
 
     return res.status(201).json({
       success: true,
