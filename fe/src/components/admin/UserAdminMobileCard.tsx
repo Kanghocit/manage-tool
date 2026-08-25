@@ -25,8 +25,22 @@ type Props = {
   onBlock: () => void;
   onUnblock: () => void;
   onResetDevice: () => void;
-  onSendEmail?: () => void;
+  onSendEmail: () => void;
 };
+
+function canSendWelcomeEmail(row: UserAdminRow) {
+  return row.registrationSource === "self" && !row.welcomeEmailSentAt;
+}
+
+function getSendEmailDisabledReason(
+  row: UserAdminRow,
+  t: (key: string) => string,
+): string | undefined {
+  if (canSendWelcomeEmail(row)) return undefined;
+  if (row.registrationSource !== "self") return t("adminUsers.sendEmailDisabledAdmin");
+  if (row.welcomeEmailSentAt) return t("adminUsers.sendEmailDisabledSent");
+  return undefined;
+}
 
 export function UserAdminMobileCard({
   row,
@@ -42,6 +56,9 @@ export function UserAdminMobileCard({
 }: Props) {
   const { t } = useTranslation();
   const statusColor = row.status === "active" ? "green" : "red";
+  const sendEmailEnabled = canSendWelcomeEmail(row);
+  const sendEmailDisabledReason = getSendEmailDisabledReason(row, t);
+  const resetDeviceEnabled = !!row.registeredDeviceId;
 
   return (
     <Card size="small" className="admin-mobile-card">
@@ -74,13 +91,21 @@ export function UserAdminMobileCard({
         {t("adminUsers.createdAt")}: {dayjs(row.createdAt).format("YYYY-MM-DD HH:mm")}
       </div>
       <Space direction="vertical" className="admin-mobile-actions w-full" size="small">
-        {onSendEmail ? (
+        {sendEmailEnabled ? (
           <Popconfirm title={t("adminUsers.confirmSendEmail")} onConfirm={onSendEmail}>
             <Button block type="primary" loading={sendEmailLoading}>
               {t("adminUsers.sendEmail")}
             </Button>
           </Popconfirm>
-        ) : null}
+        ) : (
+          <Tooltip title={sendEmailDisabledReason}>
+            <span className="block w-full">
+              <Button block type="primary" disabled>
+                {t("adminUsers.sendEmail")}
+              </Button>
+            </span>
+          </Tooltip>
+        )}
         {row.status === "blocked" ? (
           <Popconfirm title={t("adminUsers.confirmUnblock")} onConfirm={onUnblock}>
             <Button block loading={unblockLoading}>
@@ -98,13 +123,21 @@ export function UserAdminMobileCard({
             </Button>
           </Popconfirm>
         )}
-        {row.registeredDeviceId ? (
+        {resetDeviceEnabled ? (
           <Popconfirm title={t("adminUsers.confirmResetDevice")} onConfirm={onResetDevice}>
             <Button block loading={resetDeviceLoading}>
               {t("adminUsers.resetDevice")}
             </Button>
           </Popconfirm>
-        ) : null}
+        ) : (
+          <Tooltip title={t("adminUsers.resetDeviceDisabled")}>
+            <span className="block w-full">
+              <Button block disabled>
+                {t("adminUsers.resetDevice")}
+              </Button>
+            </span>
+          </Tooltip>
+        )}
       </Space>
     </Card>
   );

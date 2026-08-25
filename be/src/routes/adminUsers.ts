@@ -275,12 +275,32 @@ adminUsersRouter.post('/:id/send-welcome-email', async (req, res, next) => {
       })
     }
 
-    const licenseKey = user.welcomeTrialLicense?.licenseKeyPlain
+    let licenseKey = user.welcomeTrialLicense?.licenseKeyPlain ?? null
+    let trialLicenseCreated = false
+
     if (!licenseKey || user.welcomeTrialLicense?.deletedAt) {
-      return res.status(400).json({
+      const trialLicense = await prisma.$transaction(async (tx) => {
+        const created = await createUnusedLicense(tx, {
+          durationDays: 1,
+          maxDevices: 1,
+          notes: 'Welcome trial',
+          createdById: actorId,
+        })
+        await tx.user.update({
+          where: { id },
+          data: { welcomeTrialLicenseId: created.id },
+        })
+        return created
+      })
+      licenseKey = trialLicense.licenseKeyPlain
+      trialLicenseCreated = true
+    }
+
+    if (!licenseKey) {
+      return res.status(500).json({
         success: false,
         code: 'NO_TRIAL_LICENSE',
-        message: 'This user has no welcome trial license.',
+        message: 'Could not resolve welcome trial license key.',
       })
     }
 
@@ -306,6 +326,7 @@ adminUsersRouter.post('/:id/send-welcome-email', async (req, res, next) => {
     await audit(actorId, 'admin.user.send_welcome_email', 'user', id, {
       email: user.email,
       sentAt: sentAt.toISOString(),
+      trialLicenseCreated,
     })
 
     return res.json({

@@ -58,7 +58,8 @@
     "expired": "Expired",
     "unknown": "Unknown",
     "close": "Close",
-    "copy": "Copy"
+    "copy": "Copy",
+    "actions": "Actions"
   },
   "fields": {
     "fullName": "Full name",
@@ -157,6 +158,9 @@
     "emailSentStatus": "Sent",
     "emailNotApplicable": "—",
     "sendEmail": "Send email",
+    "sendEmailDisabledAdmin": "Only for self-registered users",
+    "sendEmailDisabledSent": "Welcome email already sent",
+    "resetDeviceDisabled": "No device bound to this account",
     "confirmSendEmail": "Send welcome email with trial license to this user?",
     "emailSent": "Welcome email sent"
   },

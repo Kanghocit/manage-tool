@@ -58,11 +58,17 @@ async function fetchUsers(params: FetchParams) {
 }
 
 function canSendWelcomeEmail(row: UserRow) {
-  return (
-    row.registrationSource === "self" &&
-    !row.welcomeEmailSentAt &&
-    row.hasWelcomeTrialLicense
-  );
+  return row.registrationSource === "self" && !row.welcomeEmailSentAt;
+}
+
+function getSendEmailDisabledReason(
+  row: UserRow,
+  t: (key: string) => string,
+): string | undefined {
+  if (canSendWelcomeEmail(row)) return undefined;
+  if (row.registrationSource !== "self") return t("adminUsers.sendEmailDisabledAdmin");
+  if (row.welcomeEmailSentAt) return t("adminUsers.sendEmailDisabledSent");
+  return undefined;
 }
 
 type MobileFilters = {
@@ -203,11 +209,7 @@ function AdminUsersMobileList({ tab }: { tab: UserTab }) {
                 onBlock={() => blockMut.mutate(row.id)}
                 onUnblock={() => unblockMut.mutate(row.id)}
                 onResetDevice={() => resetDeviceMut.mutate(row.id)}
-                onSendEmail={
-                  canSendWelcomeEmail(row)
-                    ? () => sendEmailMut.mutate(row.id)
-                    : undefined
-                }
+                onSendEmail={() => sendEmailMut.mutate(row.id)}
               />
             </List.Item>
           )}
@@ -380,24 +382,32 @@ function AdminUsersDesktopTable({ tab }: { tab: UserTab }) {
       search: false,
       render: (_, row) => {
         const isSelf = currentUser?.id === row.id;
-        const actions: React.ReactNode[] = [];
+        const sendEmailEnabled = canSendWelcomeEmail(row);
+        const sendEmailDisabledReason = getSendEmailDisabledReason(row, t);
+        const resetDeviceEnabled = !!row.registeredDeviceId;
 
-        if (canSendWelcomeEmail(row)) {
-          actions.push(
-            <Popconfirm
-              key="send-email"
-              title={t("adminUsers.confirmSendEmail")}
-              onConfirm={() => sendEmailMut.mutate(row.id)}
-            >
-              <Button type="link" loading={sendEmailMut.isPending}>
+        const sendEmailAction = sendEmailEnabled ? (
+          <Popconfirm
+            key="send-email"
+            title={t("adminUsers.confirmSendEmail")}
+            onConfirm={() => sendEmailMut.mutate(row.id)}
+          >
+            <Button type="link" loading={sendEmailMut.isPending}>
+              {t("adminUsers.sendEmail")}
+            </Button>
+          </Popconfirm>
+        ) : (
+          <Tooltip key="send-email" title={sendEmailDisabledReason}>
+            <span>
+              <Button type="link" disabled>
                 {t("adminUsers.sendEmail")}
               </Button>
-            </Popconfirm>,
-          );
-        }
+            </span>
+          </Tooltip>
+        );
 
-        if (row.status === "blocked") {
-          actions.push(
+        const blockAction =
+          row.status === "blocked" ? (
             <Popconfirm
               key="unblock"
               title={t("adminUsers.confirmUnblock")}
@@ -406,10 +416,8 @@ function AdminUsersDesktopTable({ tab }: { tab: UserTab }) {
               <Button type="link" loading={unblockMut.isPending}>
                 {t("adminUsers.unblock")}
               </Button>
-            </Popconfirm>,
-          );
-        } else {
-          actions.push(
+            </Popconfirm>
+          ) : (
             <Popconfirm
               key="block"
               title={isSelf ? t("adminUsers.cannotBlockSelf") : t("adminUsers.confirmBlock")}
@@ -419,25 +427,30 @@ function AdminUsersDesktopTable({ tab }: { tab: UserTab }) {
               <Button type="link" danger disabled={isSelf} loading={blockMut.isPending}>
                 {t("adminUsers.block")}
               </Button>
-            </Popconfirm>,
+            </Popconfirm>
           );
-        }
 
-        if (row.registeredDeviceId) {
-          actions.push(
-            <Popconfirm
-              key="reset-device"
-              title={t("adminUsers.confirmResetDevice")}
-              onConfirm={() => resetDeviceMut.mutate(row.id)}
-            >
-              <Button type="link" loading={resetDeviceMut.isPending}>
+        const resetDeviceAction = resetDeviceEnabled ? (
+          <Popconfirm
+            key="reset-device"
+            title={t("adminUsers.confirmResetDevice")}
+            onConfirm={() => resetDeviceMut.mutate(row.id)}
+          >
+            <Button type="link" loading={resetDeviceMut.isPending}>
+              {t("adminUsers.resetDevice")}
+            </Button>
+          </Popconfirm>
+        ) : (
+          <Tooltip key="reset-device" title={t("adminUsers.resetDeviceDisabled")}>
+            <span>
+              <Button type="link" disabled>
                 {t("adminUsers.resetDevice")}
               </Button>
-            </Popconfirm>,
-          );
-        }
+            </span>
+          </Tooltip>
+        );
 
-        return actions;
+        return [sendEmailAction, blockAction, resetDeviceAction];
       },
     },
   ];

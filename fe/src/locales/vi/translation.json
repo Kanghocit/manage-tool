@@ -58,7 +58,8 @@
     "expired": "Hết hạn",
     "unknown": "Không xác định",
     "close": "Đóng",
-    "copy": "Sao chép"
+    "copy": "Sao chép",
+    "actions": "Thao tác"
   },
   "fields": {
     "fullName": "Họ và tên",
@@ -157,6 +158,9 @@
     "emailSentStatus": "Đã gửi",
     "emailNotApplicable": "—",
     "sendEmail": "Gửi mail",
+    "sendEmailDisabledAdmin": "Chỉ áp dụng cho user tự đăng ký",
+    "sendEmailDisabledSent": "Email chào mừng đã được gửi",
+    "resetDeviceDisabled": "Tài khoản chưa gắn thiết bị",
     "confirmSendEmail": "Gửi email chào mừng kèm license trial cho user này?",
     "emailSent": "Đã gửi email chào mừng"
   },
