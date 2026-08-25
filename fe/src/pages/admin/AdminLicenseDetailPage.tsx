@@ -1,5 +1,6 @@
 import {
   App as AntApp,
+  Alert,
   Button,
   Card,
   Descriptions,
@@ -344,6 +345,12 @@ export function AdminLicenseDetailPage() {
         style={{ maxWidth: "calc(100vw - 32px)" }}
         width={isMobile ? "100%" : 520}
       >
+        <Alert
+          type="info"
+          showIcon
+          className="mb-3"
+          message={t("adminLicenses.extendFromNowHint")}
+        />
         <div className="mb-2 text-sm text-slate-600">
           {t("adminLicenses.extraDays")}
         </div>

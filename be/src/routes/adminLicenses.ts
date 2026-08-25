@@ -373,31 +373,42 @@ adminLicensesRouter.patch("/:id/extend", async (req, res, next) => {
     }
 
     const ms = extraDays * 24 * 60 * 60 * 1000;
-    let expiresAt: Date | null = lic.expiresAt;
+    const previousExpiresAt = lic.expiresAt;
+    const previousStatus = lic.status;
+
+    let updateData: {
+      durationDays?: number;
+      expiresAt?: Date;
+      status?: typeof lic.status;
+    };
 
     if (!lic.activatedById) {
-      const current = lic.durationDays ?? 0;
-      await prisma.license.update({
-        where: { id },
-        data: { durationDays: current + extraDays },
-      });
-    } else if (lic.expiresAt) {
-      expiresAt = new Date(lic.expiresAt.getTime() + ms);
-      await prisma.license.update({
-        where: { id },
-        data: { expiresAt },
-      });
+      updateData = { durationDays: (lic.durationDays ?? 0) + extraDays };
     } else {
-      await prisma.license.update({
-        where: { id },
-        data: { durationDays: (lic.durationDays ?? 0) + extraDays },
-      });
+      updateData = {
+        expiresAt: new Date(Date.now() + ms),
+        ...(lic.status === "expired" ? { status: "active" as const } : {}),
+      };
     }
 
-    const updated = await prisma.license.findUnique({ where: { id } });
-    await audit(actorId, "admin.license.extend", "license", id, { extraDays });
+    const updated = await prisma.license.update({
+      where: { id },
+      data: updateData,
+    });
 
-    return res.json({ success: true, expiresAt: updated?.expiresAt ?? null });
+    await audit(actorId, "admin.license.extend", "license", id, {
+      extraDays,
+      previousExpiresAt: previousExpiresAt?.toISOString() ?? null,
+      newExpiresAt: updated.expiresAt?.toISOString() ?? null,
+      previousStatus,
+      newStatus: updated.status,
+    });
+
+    return res.json({
+      success: true,
+      expiresAt: updated.expiresAt,
+      status: updated.status,
+    });
   } catch (err) {
     next(err);
   }

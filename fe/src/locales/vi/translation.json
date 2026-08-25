@@ -102,6 +102,7 @@
     "unblocked": "Đã mở khóa license",
     "extended": "Đã gia hạn",
     "extraDays": "Thêm (ngày)",
+    "extendFromNowHint": "Thời hạn gia hạn tính từ thời điểm hiện tại. License đang hết hạn sẽ được chuyển về trạng thái active.",
     "confirmBlock": "Khóa license này?",
     "confirmUnblock": "Mở khóa license này?",
     "confirmRevoke": "Gỡ thiết bị này?",

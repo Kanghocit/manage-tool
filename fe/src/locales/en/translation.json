@@ -102,6 +102,7 @@
     "unblocked": "License unblocked",
     "extended": "License extended",
     "extraDays": "Extra days",
+    "extendFromNowHint": "Extension starts from now. Expired licenses will be reactivated.",
     "confirmBlock": "Block this license?",
     "confirmUnblock": "Unblock this license?",
     "confirmRevoke": "Revoke this device?",
