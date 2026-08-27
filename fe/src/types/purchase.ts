@@ -1,4 +1,4 @@
-export type PackageCode = "PKG_1D" | "PKG_3M" | "PKG_6M" | "PKG_12M" | "PKG_24M";
+export type PackageCode = string;
 
 export type PurchaseOrderDto = {
   id: string;

@@ -2,7 +2,7 @@ import { Button, List, Pagination, Spin, Tag } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { PageContainer, ProTable } from "@ant-design/pro-components";
 import type { ProColumns } from "@ant-design/pro-components";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -12,8 +12,10 @@ import {
   LicenseAdminMobileCard,
   type LicenseAdminRow,
 } from "../../components/admin/LicenseAdminMobileCard";
+import { AdminExcelTransferButtons } from "../../components/admin/AdminExcelTransferButtons";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { api } from "../../lib/api";
+import { licenseStatusColor, licenseStatusLabel } from "../../lib/statusLabels";
 
 type LicenseRow = LicenseAdminRow;
 
@@ -83,12 +85,7 @@ function AdminLicensesDesktopTable({ onCreate }: { onCreate: () => void }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  const statusColor = (s: string) => {
-    if (s === "active") return "green";
-    if (s === "blocked") return "red";
-    if (s === "expired") return "default";
-    return "blue";
-  };
+  const statusColor = licenseStatusColor;
 
   const columns: ProColumns<LicenseRow>[] = [
     {
@@ -112,7 +109,9 @@ function AdminLicensesDesktopTable({ onCreate }: { onCreate: () => void }) {
       title: t("common.status"),
       dataIndex: "status",
       render: (_, row) => (
-        <Tag color={statusColor(row.status)}>{row.status}</Tag>
+        <Tag color={statusColor(row.status)}>
+          {licenseStatusLabel(row.status, t)}
+        </Tag>
       ),
     },
     {
@@ -201,6 +200,7 @@ export function AdminLicensesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
 
   // const createBtn = (
   //   <Button
@@ -217,7 +217,17 @@ export function AdminLicensesPage() {
   return (
     <PageContainer
       title={t("menu.licenses")}
-      // extra={isMobile ? undefined : [createBtn]}
+      extra={
+        <AdminExcelTransferButtons
+          exportUrl="/api/admin/licenses/export"
+          importUrl="/api/admin/licenses/import"
+          templateUrl="/api/admin/licenses/export/template"
+          onImported={() => {
+            void queryClient.invalidateQueries({ queryKey: ["admin-licenses"] });
+            void queryClient.invalidateQueries({ queryKey: ["admin-licenses-mobile"] });
+          }}
+        />
+      }
     >
       {isMobile ? (
         <AdminLicensesMobileList

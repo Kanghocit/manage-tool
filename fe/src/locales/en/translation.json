@@ -39,7 +39,9 @@
     "profile": "Profile",
     "users": "Users",
     "licenses": "Licenses",
-    "licenseRequests": "License requests"
+    "licensePackages": "Package pricing",
+    "licenseRequests": "License requests",
+    "guide": "User guide"
   },
   "common": {
     "loading": "Loading…",
@@ -59,7 +61,19 @@
     "unknown": "Unknown",
     "close": "Close",
     "copy": "Copy",
-    "actions": "Actions"
+    "actions": "Actions",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "licenseStatus": {
+    "unused": "Unused",
+    "active": "Active",
+    "expired": "Expired",
+    "blocked": "Blocked"
+  },
+  "userStatus": {
+    "active": "Active",
+    "blocked": "Blocked"
   },
   "fields": {
     "fullName": "Full name",
@@ -153,7 +167,7 @@
     "registrationSource": "Source",
     "sourceSelf": "Self-registered",
     "sourceAdmin": "Admin created",
-    "emailStatus": "Email",
+    "emailStatus": "Mail status",
     "emailPending": "Not sent",
     "emailSentStatus": "Sent",
     "emailNotApplicable": "—",
@@ -162,7 +176,48 @@
     "sendEmailDisabledSent": "Welcome email already sent",
     "resetDeviceDisabled": "No device bound to this account",
     "confirmSendEmail": "Send welcome email with trial license to this user?",
-    "emailSent": "Welcome email sent"
+    "emailSent": "Welcome email sent",
+    "filterSource": "Filter source",
+    "createdBy": "Created by",
+    "changeSource": "Change source",
+    "clickToChangeSource": "Click to change source",
+    "confirmChangeSource": "Change this user's registration source?",
+    "sourceChanged": "User source updated"
+  },
+  "adminLicensePackages": {
+    "subtitle": "Manage license packages: create, edit, enable/disable, and run promotions.",
+    "code": "Package code",
+    "displayName": "Display name",
+    "duration": "Duration",
+    "sortOrder": "Sort order",
+    "basePrice": "Base price",
+    "currentPrice": "Current price",
+    "createPackage": "Create package",
+    "editPackage": "Edit package",
+    "editPrice": "Edit price",
+    "addPromotion": "Add promotion",
+    "editPromotion": "Edit promotion",
+    "deactivatePackage": "Deactivate",
+    "activatePackage": "Activate",
+    "confirmDeactivate": "Deactivate this package? It will be hidden from checkout.",
+    "confirmActivate": "Activate this package on checkout?",
+    "packageCreated": "Package created",
+    "packageUpdated": "Package updated",
+    "packageActivated": "Package activated",
+    "packageDeactivated": "Package deactivated",
+    "codeRequired": "Enter package code",
+    "codeInvalid": "Code: uppercase letters, digits, underscore (2–32 chars)",
+    "displayNameRequired": "Enter display name",
+    "promoPrice": "Promo price",
+    "promoPeriod": "Promotion period",
+    "promoPeriodRequired": "Select promotion period",
+    "promoLabel": "Promotion label",
+    "onPromotion": "On sale",
+    "noPromotions": "No promotions yet",
+    "priceUpdated": "Price updated",
+    "promotionSaved": "Promotion saved",
+    "promotionDeleted": "Promotion deleted",
+    "confirmDeletePromotion": "Delete this promotion?"
   },
   "licenseRequest": {
     "title": "Request 1-day license",
@@ -257,6 +312,7 @@
     "perMonthApprox": "~{{amount}} / month",
     "perDayApprox": "~{{amount}} / day",
     "purchaseTitle": "License plans",
+    "onPromotion": "Promotion",
     "purchaseSubtitle": "Pick a plan and pay via bank transfer. After SePay confirms your transfer, an unused license key is created automatically.",
     "rowDuration": "Duration",
     "rowTotal": "Total (VND)",
@@ -424,6 +480,103 @@
       "completed": "Completed",
       "failed": "Failed",
       "cancelled": "Cancelled"
+    }
+  },
+  "adminDataTransfer": {
+    "exportExcel": "Export Excel",
+    "importExcel": "Import Excel",
+    "downloadTemplate": "Download template",
+    "importHint": "Download the template, fill in data, then upload .xlsx (max 500 rows).",
+    "dropFile": "Drag and drop or click to select an Excel file",
+    "exportFailed": "Export failed",
+    "importFailed": "Import failed",
+    "importDone": "Created {{created}}, skipped {{skipped}}",
+    "importSummary": "Result: created {{created}}, skipped {{skipped}}",
+    "skippedRow": "Row {{row}}: {{reason}}"
+  },
+  "userGuide": {
+    "title": "User guide",
+    "subtitle": "Zalo Assistant — account portal, licenses, and Chrome extension how-to.",
+    "privacyLink": "Privacy policy",
+    "sections": {
+      "intro": {
+        "title": "1. Introduction",
+        "p1": "Zalo Assistant is a Chrome extension for automating tasks on Zalo Web (chat.zalo.me): scan phone lists, send bulk friend requests, and message templates.",
+        "p2": "This website handles registration, login, license purchase, activation, and account management. The extension uses the same API for auth and license checks.",
+        "p3": "Requirements: Chrome/Chromium, an active Zalo Web session, and a valid license."
+      },
+      "gettingStarted": {
+        "title": "2. Getting started",
+        "p1": "Follow these steps to get an account and trial license:",
+        "s1": "Register on the Sign up page (or receive credentials from an admin).",
+        "s2": "Log in on the web or in the Chrome extension with email and password.",
+        "s3": "Self-registered users may receive a 1-day trial license — admins can send a welcome email with the key.",
+        "s4": "Open My License, enter the key, and activate before using the extension."
+      },
+      "licenseBasics": {
+        "title": "3. License basics",
+        "p1": "Each license is a unique key. Status flow: unused → active → expired or blocked.",
+        "p2": "Duration starts at first activation, not at purchase or when an admin creates the key.",
+        "p3": "Keys limit the number of devices. Extension and web may have different deviceIds — activate on the extension if that is your primary client."
+      },
+      "activate": {
+        "title": "4. Activate your license",
+        "p1": "You can activate on the web or in the extension:",
+        "s1": "Log in to your account.",
+        "s2": "Open My License from the sidebar.",
+        "s3": "Paste the license key (from email, admin, or after purchase).",
+        "s4": "Click Activate, then Verify if you need to confirm status and expiry."
+      },
+      "purchase": {
+        "title": "5. Buy a license",
+        "p1": "On Overview, pick a plan and pay by bank transfer:",
+        "s1": "Choose a package (1 day, 3/6/12/24 months) and click Buy.",
+        "s2": "Scan the QR code or transfer the exact amount with the reference code (DH…).",
+        "s3": "Complete payment within the countdown (~2 minutes). The system confirms via the bank webhook.",
+        "s4": "After payment, go to My License to activate the new key.",
+        "s5": "The 1-day package can only be purchased once per account."
+      },
+      "licenseRequest": {
+        "title": "6. Request a 1-day license",
+        "p1": "If you have no key yet, you can request a free 1-day license pending admin approval.",
+        "p2": "Only one pending request per account is recommended.",
+        "s1": "On Overview, find the 1-day license request section.",
+        "s2": "Add an optional note and submit.",
+        "s3": "Once approved, activate the key on My License."
+      },
+      "extension": {
+        "title": "7. Chrome extension",
+        "p1": "Install Zalo Assistant from the Chrome Web Store (or a .crx provided by the developer).",
+        "p2": "Phone lists and message templates are usually stored locally — see the Privacy policy for what is sent to the server.",
+        "s1": "Open chat.zalo.me and sign in to Zalo Web.",
+        "s2": "Open the extension popup and log in with the same web account.",
+        "s3": "Ensure the license is activated — the extension validates it periodically.",
+        "s4": "Upload Excel/CSV phone lists, configure content, and run tasks as described in the extension UI."
+      },
+      "account": {
+        "title": "8. Account & support",
+        "p1": "Manage your profile and contact admin when needed:",
+        "s1": "Click your avatar → Profile to view details and change password.",
+        "s2": "Device mismatch errors: ask admin to reset the bound device before logging in on a new machine.",
+        "s3": "Expired license: buy a new plan on Overview or contact admin."
+      },
+      "faq": {
+        "title": "9. FAQ",
+        "p1": "Q: Web login says another device is bound? — A: The account may be tied to another extension/device. Use the original device or ask admin to unbind.",
+        "p2": "Q: Verify fails on web but extension works? — A: Web and extension use different deviceIds. Activate/verify where you actually use the product.",
+        "p3": "Q: Paid but no license yet? — A: Check amount and transfer reference; wait a few minutes. If the pending order expired, create a new one.",
+        "p4": "Q: No Sign up button? — A: Public registration may be disabled — contact admin for an account."
+      },
+      "admin": {
+        "title": "10. Admin guide",
+        "p1": "Admin menu sections (admin role only):",
+        "s1": "Licenses — create keys, detail view, extend, block/unblock, revoke devices, soft delete; Excel import/export.",
+        "s2": "Package pricing — edit prices and time-limited promotions.",
+        "s3": "License requests — approve/reject 1-day requests.",
+        "s4": "Users — create users, block/unblock, reset device, welcome email, change registration source; Excel import/export.",
+        "s5": "Overview — quick stats and test purchase flow.",
+        "s6": "Admin-created keys also start counting duration at user activation — remind users to activate promptly."
+      }
     }
   }
 }

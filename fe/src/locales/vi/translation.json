@@ -39,7 +39,9 @@
     "profile": "Hồ sơ",
     "users": "Người dùng",
     "licenses": "License",
-    "licenseRequests": "Yêu cầu license"
+    "licensePackages": "Giá gói",
+    "licenseRequests": "Yêu cầu license",
+    "guide": "Hướng dẫn"
   },
   "common": {
     "loading": "Đang tải…",
@@ -59,7 +61,19 @@
     "unknown": "Không xác định",
     "close": "Đóng",
     "copy": "Sao chép",
-    "actions": "Thao tác"
+    "actions": "Thao tác",
+    "edit": "Sửa",
+    "delete": "Xóa"
+  },
+  "licenseStatus": {
+    "unused": "Chưa dùng",
+    "active": "Đang dùng",
+    "expired": "Hết hạn",
+    "blocked": "Đã khóa"
+  },
+  "userStatus": {
+    "active": "Đang hoạt động",
+    "blocked": "Bị khóa"
   },
   "fields": {
     "fullName": "Họ và tên",
@@ -153,7 +167,7 @@
     "registrationSource": "Nguồn",
     "sourceSelf": "Tự đăng ký",
     "sourceAdmin": "Admin tạo",
-    "emailStatus": "Email",
+    "emailStatus": "Trạng thái mail",
     "emailPending": "Chưa gửi",
     "emailSentStatus": "Đã gửi",
     "emailNotApplicable": "—",
@@ -162,7 +176,48 @@
     "sendEmailDisabledSent": "Email chào mừng đã được gửi",
     "resetDeviceDisabled": "Tài khoản chưa gắn thiết bị",
     "confirmSendEmail": "Gửi email chào mừng kèm license trial cho user này?",
-    "emailSent": "Đã gửi email chào mừng"
+    "emailSent": "Đã gửi email chào mừng",
+    "filterSource": "Lọc nguồn",
+    "createdBy": "Tạo bởi",
+    "changeSource": "Đổi nguồn",
+    "clickToChangeSource": "Nhấn để đổi nguồn",
+    "confirmChangeSource": "Đổi nguồn đăng ký của user này?",
+    "sourceChanged": "Đã cập nhật nguồn user"
+  },
+  "adminLicensePackages": {
+    "subtitle": "Quản lý gói mua license: tạo, sửa, tắt/bật gói và chương trình khuyến mại.",
+    "code": "Mã gói",
+    "displayName": "Tên hiển thị",
+    "duration": "Thời hạn",
+    "sortOrder": "Thứ tự",
+    "basePrice": "Giá gốc",
+    "currentPrice": "Giá hiện tại",
+    "createPackage": "Tạo gói",
+    "editPackage": "Sửa gói",
+    "editPrice": "Sửa giá",
+    "addPromotion": "Thêm KM",
+    "editPromotion": "Sửa KM",
+    "deactivatePackage": "Tắt gói",
+    "activatePackage": "Bật gói",
+    "confirmDeactivate": "Tắt gói này? Gói sẽ không hiển thị trên trang mua.",
+    "confirmActivate": "Bật lại gói này trên trang mua?",
+    "packageCreated": "Đã tạo gói",
+    "packageUpdated": "Đã cập nhật gói",
+    "packageActivated": "Đã bật gói",
+    "packageDeactivated": "Đã tắt gói",
+    "codeRequired": "Nhập mã gói",
+    "codeInvalid": "Mã gói: chữ in hoa, số, gạch dưới (2–32 ký tự)",
+    "displayNameRequired": "Nhập tên hiển thị",
+    "promoPrice": "Giá KM",
+    "promoPeriod": "Thời gian KM",
+    "promoPeriodRequired": "Chọn thời gian khuyến mại",
+    "promoLabel": "Nhãn KM",
+    "onPromotion": "Đang KM",
+    "noPromotions": "Chưa có khuyến mại",
+    "priceUpdated": "Đã cập nhật giá",
+    "promotionSaved": "Đã lưu khuyến mại",
+    "promotionDeleted": "Đã xóa khuyến mại",
+    "confirmDeletePromotion": "Xóa khuyến mại này?"
   },
   "licenseRequest": {
     "title": "Xin cấp license 1 ngày",
@@ -256,6 +311,7 @@
     "perMonthApprox": "~{{amount}} / tháng",
     "perDayApprox": "~{{amount}} / ngày",
     "purchaseTitle": "Gói license",
+    "onPromotion": "Khuyến mại",
     "purchaseSubtitle": "Chọn gói và chuyển khoản. Sau khi SePay xác nhận, hệ thống tự tạo license (chưa kích hoạt) cho bạn.",
     "rowDuration": "Thời hạn",
     "rowTotal": "Tổng giá (VNĐ)",
@@ -423,6 +479,103 @@
       "completed": "Hoàn thành",
       "failed": "Lỗi",
       "cancelled": "Đã hủy"
+    }
+  },
+  "adminDataTransfer": {
+    "exportExcel": "Xuất Excel",
+    "importExcel": "Nhập Excel",
+    "downloadTemplate": "Tải file mẫu",
+    "importHint": "Tải file mẫu, điền dữ liệu và upload file .xlsx (tối đa 500 dòng).",
+    "dropFile": "Kéo thả hoặc bấm để chọn file Excel",
+    "exportFailed": "Xuất file thất bại",
+    "importFailed": "Nhập file thất bại",
+    "importDone": "Đã tạo {{created}}, bỏ qua {{skipped}}",
+    "importSummary": "Kết quả: tạo {{created}}, bỏ qua {{skipped}}",
+    "skippedRow": "Dòng {{row}}: {{reason}}"
+  },
+  "userGuide": {
+    "title": "Hướng dẫn sử dụng",
+    "subtitle": "Zalo Assistant — cổng quản lý tài khoản, license và hướng dẫn tiện ích Chrome.",
+    "privacyLink": "Chính sách bảo mật",
+    "sections": {
+      "intro": {
+        "title": "1. Giới thiệu",
+        "p1": "Hỗ trợ Zalo (Zalo Assistant) là tiện ích Chrome hỗ trợ tự động hóa trên Zalo Web (chat.zalo.me): quét danh sách số điện thoại, gửi lời mời kết bạn và nhắn tin hàng loạt theo mẫu bạn cấu hình.",
+        "p2": "Trang web này dùng để đăng ký/đăng nhập, mua gói license, kích hoạt key và quản lý tài khoản. Tiện ích Chrome kết nối cùng API để xác thực và kiểm tra license khi bạn sử dụng.",
+        "p3": "Yêu cầu: trình duyệt Chrome (hoặc Chromium), tài khoản Zalo Web đang hoạt động, và license còn hiệu lực."
+      },
+      "gettingStarted": {
+        "title": "2. Bắt đầu",
+        "p1": "Làm theo các bước sau để có tài khoản và license dùng thử:",
+        "s1": "Đăng ký tài khoản tại trang Đăng ký (hoặc nhận tài khoản do admin tạo).",
+        "s2": "Đăng nhập trên web hoặc trong tiện ích Chrome bằng email và mật khẩu.",
+        "s3": "User tự đăng ký thường được cấp license dùng thử 1 ngày — admin có thể gửi email chứa key.",
+        "s4": "Vào License của tôi, nhập key và bấm Kích hoạt trước khi dùng tiện ích."
+      },
+      "licenseBasics": {
+        "title": "3. License cơ bản",
+        "p1": "Mỗi license là một key duy nhất. Trạng thái: chưa dùng (unused) → đang hoạt động (active) → hết hạn (expired) hoặc bị khóa (blocked).",
+        "p2": "Thời hạn gói bắt đầu tính từ lúc bạn kích hoạt lần đầu, không phải lúc mua hay admin tạo key.",
+        "p3": "Mỗi key giới hạn số thiết bị (device). Extension và trang web có thể có deviceId khác nhau — kích hoạt trên extension nếu bạn chủ yếu dùng tiện ích."
+      },
+      "activate": {
+        "title": "4. Kích hoạt license",
+        "p1": "Bạn có thể kích hoạt trên web hoặc trong tiện ích:",
+        "s1": "Đăng nhập tài khoản.",
+        "s2": "Mở License của tôi (menu bên trái).",
+        "s3": "Dán license key (từ email, admin, hoặc sau khi mua gói) vào ô nhập.",
+        "s4": "Bấm Kích hoạt, sau đó bấm Kiểm tra (Verify) nếu cần xác nhận trạng thái và hạn dùng."
+      },
+      "purchase": {
+        "title": "5. Mua license",
+        "p1": "Tại Tổng quan, chọn gói phù hợp và thanh toán chuyển khoản:",
+        "s1": "Chọn gói (1 ngày, 3/6/12/24 tháng) và bấm Mua.",
+        "s2": "Quét mã QR hoặc chuyển khoản đúng số tiền và nội dung chuyển khoản (mã DH…).",
+        "s3": "Hoàn tất trong thời gian hiển thị (khoảng 2 phút). Hệ thống tự xác nhận qua ngân hàng.",
+        "s4": "Sau khi thanh toán thành công, vào License của tôi để kích hoạt key mới.",
+        "s5": "Gói 1 ngày chỉ mua được một lần trên mỗi tài khoản."
+      },
+      "licenseRequest": {
+        "title": "6. Xin cấp license 1 ngày",
+        "p1": "Nếu chưa có key, bạn có thể gửi yêu cầu cấp license 1 ngày miễn phí (admin duyệt).",
+        "p2": "Mỗi tài khoản chỉ nên có một yêu cầu đang chờ duyệt.",
+        "s1": "Vào Tổng quan, tìm mục Xin cấp license 1 ngày.",
+        "s2": "Nhập ghi chú (tuỳ chọn) và gửi yêu cầu.",
+        "s3": "Khi admin duyệt, key xuất hiện — kích hoạt tại License của tôi."
+      },
+      "extension": {
+        "title": "7. Dùng tiện ích Chrome",
+        "p1": "Cài tiện ích Hỗ trợ Zalo từ Chrome Web Store (hoặc file .crx do nhà phát triển cung cấp).",
+        "p2": "Danh sách số điện thoại và mẫu tin nhắn thường được lưu cục bộ trên máy bạn — xem Chính sách bảo mật để biết dữ liệu nào gửi lên server.",
+        "s1": "Mở chat.zalo.me và đăng nhập Zalo Web.",
+        "s2": "Mở popup tiện ích, đăng nhập cùng tài khoản web.",
+        "s3": "Đảm bảo license đã kích hoạt — tiện ích sẽ kiểm tra license định kỳ.",
+        "s4": "Tải file Excel/CSV số điện thoại, cấu hình nội dung, rồi chạy tác vụ theo hướng dẫn trong tiện ích."
+      },
+      "account": {
+        "title": "8. Tài khoản & hỗ trợ",
+        "p1": "Quản lý thông tin cá nhân và liên hệ admin khi gặp sự cố:",
+        "s1": "Bấm avatar góc phải → Hồ sơ để xem thông tin và đổi mật khẩu.",
+        "s2": "Nếu báo lỗi thiết bị (device mismatch), liên hệ admin để gỡ thiết bị cũ trước khi đăng nhập máy mới.",
+        "s3": "License hết hạn: mua gói mới tại Tổng quan hoặc liên hệ admin."
+      },
+      "faq": {
+        "title": "9. Câu hỏi thường gặp",
+        "p1": "Q: Đăng nhập web báo đã gắn thiết bị khác? — A: Tài khoản có thể đã đăng nhập trên extension/máy khác. Dùng đúng thiết bị cũ hoặc nhờ admin gỡ thiết bị.",
+        "p2": "Q: Verify trên web lỗi nhưng extension vẫn chạy? — A: Web và extension có deviceId khác nhau. Ưu tiên kích hoạt/verify trên nơi bạn dùng chính.",
+        "p3": "Q: Chuyển khoản rồi chưa có license? — A: Kiểm tra đúng số tiền và nội dung chuyển khoản; đợi vài phút. Nếu quá hạn đơn pending, tạo đơn mới.",
+        "p4": "Q: Không thấy nút Đăng ký? — A: Admin có thể tắt đăng ký công khai — liên hệ để được tạo tài khoản."
+      },
+      "admin": {
+        "title": "10. Hướng dẫn Admin",
+        "p1": "Các mục quản trị trong menu (chỉ role admin):",
+        "s1": "License — tạo key, xem chi tiết, gia hạn, khóa/mở, gỡ thiết bị, xóa mềm; Import/Export Excel.",
+        "s2": "Giá gói — chỉnh giá bán và chương trình khuyến mại theo thời gian.",
+        "s3": "Yêu cầu license — duyệt/từ chối yêu cầu 1 ngày của user.",
+        "s4": "Người dùng — tạo user, khóa/mở, gỡ thiết bị, gửi email chào mừng, đổi nguồn đăng ký; Import/Export Excel.",
+        "s5": "Tổng quan — thống kê nhanh và luồng test mua gói.",
+        "s6": "Thời hạn license admin tạo cũng tính từ lúc user kích hoạt — nhắc user activate sớm nếu cần."
+      }
     }
   }
 }

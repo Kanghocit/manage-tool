@@ -69,8 +69,42 @@ model User {
   purchaseOrders           PurchaseOrder[]
   licenseRequests          LicenseRequest[]     @relation("LicenseRequestUser")
   reviewedLicenseRequests  LicenseRequest[]     @relation("LicenseRequestReviewer")
+  createdPackagePromotions LicensePackagePromotion[] @relation("PackagePromotionCreator")
 
   @@index([registrationSource, welcomeEmailSentAt])
+}
+
+model LicensePackage {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  durationDays  Int
+  baseAmountVnd Int
+  labelKey      String
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  promotions LicensePackagePromotion[]
+}
+
+model LicensePackagePromotion {
+  id             String   @id @default(uuid())
+  packageId      String
+  promoAmountVnd Int
+  startsAt       DateTime
+  endsAt         DateTime
+  label          String?
+  isEnabled      Boolean  @default(true)
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  package   LicensePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  createdBy User?          @relation("PackagePromotionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([packageId])
+  @@index([startsAt, endsAt])
 }
 
 model PurchaseOrder {
@@ -78,6 +112,8 @@ model PurchaseOrder {
   userId               String
   packageCode          String
   amountVnd            Int
+  originalAmountVnd    Int?
+  promotionId          String?
   transferContent      String               @unique
   status               PurchaseOrderStatus  @default(pending)
   sepayTransactionId   Int?                 @unique

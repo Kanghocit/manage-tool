@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
 import { api } from "../../lib/api";
+import { licenseStatusColor, licenseStatusLabel } from "../../lib/statusLabels";
 import { useIsMobile } from "../../hooks/useIsMobile";
 
 type LicenseDetail = {
@@ -120,12 +121,7 @@ export function AdminLicenseDetailPage() {
   const lic = detailQuery.data;
   const isMobile = useIsMobile();
 
-  const statusColor = (s: string) => {
-    if (s === "active") return "green";
-    if (s === "blocked") return "red";
-    if (s === "expired") return "default";
-    return "blue";
-  };
+  const statusColor = licenseStatusColor;
 
   return (
     <PageContainer
@@ -200,7 +196,9 @@ export function AdminLicenseDetailPage() {
               {lic.licenseKeyPreview}
             </Descriptions.Item>
             <Descriptions.Item label={t("common.status")}>
-              <Tag color={statusColor(lic.status)}>{lic.status}</Tag>
+              <Tag color={statusColor(lic.status)}>
+                {licenseStatusLabel(lic.status, t)}
+              </Tag>
             </Descriptions.Item>
             <Descriptions.Item label={t("pages.maxDevices")}>
               {lic.maxDevices}

@@ -3,13 +3,13 @@ import express from "express";
 import { z } from "zod";
 
 import { env } from "../config/env";
-import { getPackageByCode, packageCodeSchema } from "../config/licensePackages";
+import { getResolvedPackageByCode } from "../lib/licensePackageService";
 import { createUnusedLicense } from "../lib/createUnusedLicense";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/auth";
 
 const createBodySchema = z.object({
-  packageCode: packageCodeSchema,
+  packageCode: z.string().min(2).max(32),
 });
 
 function buildSepayQrImageUrl(amountVnd: number, des: string): string | null {
@@ -112,14 +112,15 @@ purchasesRouter.post("/", async (req, res, next) => {
       });
     }
 
-    const pkg = getPackageByCode(parsed.data.packageCode);
-    if (!pkg) {
+    const resolved = await getResolvedPackageByCode(parsed.data.packageCode);
+    if (!resolved) {
       return res.status(400).json({
         success: false,
         code: "UNKNOWN_PACKAGE",
         message: "Unknown package.",
       });
     }
+    const { package: pkg, price } = resolved;
 
     // One-time limit: PKG_1D can only be purchased once per account.
     if (parsed.data.packageCode === "PKG_1D") {
@@ -179,7 +180,9 @@ purchasesRouter.post("/", async (req, res, next) => {
       data: {
         userId: req.auth!.userId,
         packageCode: pkg.code,
-        amountVnd: pkg.amountVnd,
+        amountVnd: price.amountVnd,
+        originalAmountVnd: price.originalAmountVnd,
+        promotionId: price.promotion?.id ?? null,
         transferContent,
         status: "pending",
       },

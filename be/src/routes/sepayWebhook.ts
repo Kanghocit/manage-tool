@@ -1,7 +1,7 @@
 import express from 'express'
 
 import { env } from '../config/env'
-import { getPackageByCode } from '../config/licensePackages'
+import { getPackageByCode } from '../lib/licensePackageService'
 import { createUnusedLicense } from '../lib/createUnusedLicense'
 import { prisma } from '../lib/prisma'
 
@@ -105,7 +105,7 @@ sepayWebhookRouter.post('/', async (req, res) => {
       })
       if (!locked) return
 
-      const pkg = getPackageByCode(locked.packageCode)
+      const pkg = await getPackageByCode(locked.packageCode)
       const durationDays = pkg?.durationDays ?? null
 
       const license = await createUnusedLicense(tx, {

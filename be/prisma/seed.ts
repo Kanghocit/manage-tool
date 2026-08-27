@@ -2,9 +2,31 @@ import 'dotenv/config'
 import bcrypt from 'bcrypt'
 import { PrismaClient } from '@prisma/client'
 
+import { DEFAULT_PACKAGE_SEED } from '../src/config/licensePackages'
+
 const prisma = new PrismaClient()
 
+async function seedPackages() {
+  for (const pkg of DEFAULT_PACKAGE_SEED) {
+    await prisma.licensePackage.upsert({
+      where: { code: pkg.code },
+      create: {
+        code: pkg.code,
+        durationDays: pkg.durationDays,
+        baseAmountVnd: pkg.baseAmountVnd,
+        labelKey: pkg.labelKey,
+        sortOrder: pkg.sortOrder,
+        isActive: true,
+      },
+      update: {},
+    })
+  }
+  console.log('[seed] license packages ensured')
+}
+
 const main = async () => {
+  await seedPackages()
+
   const email = process.env.SEED_ADMIN_EMAIL ?? 'admin@example.com'
   const password = process.env.SEED_ADMIN_PASSWORD ?? 'Admin@123'
   const fullName = process.env.SEED_ADMIN_NAME ?? 'System Admin'

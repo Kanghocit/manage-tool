@@ -52,3 +52,20 @@ body {
     padding-inline: 0;
   }
 }
+
+.admin-users-table .ant-table {
+  width: 100%;
+}
+
+.admin-users-table .ant-table-thead > tr > th {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.admin-users-table .ant-table-tbody > tr > td {
+  vertical-align: middle;
+}
+
+.admin-users-table .ant-tag {
+  margin-inline-end: 0;
+}

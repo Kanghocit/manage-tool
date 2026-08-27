@@ -1,7 +1,7 @@
 import express from 'express'
 import { z } from 'zod'
 
-import { getPackageByCode } from '../config/licensePackages'
+import { getPackageByCode } from '../lib/licensePackageService'
 import { createUnusedLicense } from '../lib/createUnusedLicense'
 import { prisma } from '../lib/prisma'
 import { requireAuth, requireRole } from '../middleware/auth'
@@ -50,7 +50,7 @@ adminPurchasesRouter.post('/:id/confirm', ...admin, async (req, res, next) => {
       })
       if (!order) return null
 
-      const pkg = getPackageByCode(order.packageCode)
+      const pkg = await getPackageByCode(order.packageCode)
       const license = await createUnusedLicense(tx, {
         durationDays: pkg?.durationDays ?? null,
         maxDevices: 1,

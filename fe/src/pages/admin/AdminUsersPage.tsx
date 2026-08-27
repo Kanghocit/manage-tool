@@ -5,9 +5,11 @@ import {
   Input,
   List,
   Pagination,
+  Modal,
   Popconfirm,
   Select,
   Spin,
+  Space,
   Tabs,
   Tag,
   Tooltip,
@@ -21,11 +23,13 @@ import type { ActionType } from "@ant-design/pro-components";
 import dayjs from "dayjs";
 import axios from "axios";
 
+import { AdminExcelTransferButtons } from "../../components/admin/AdminExcelTransferButtons";
 import { CreateUserModal } from "../../components/admin/CreateUserModal";
 import { UserAdminMobileCard, type UserAdminRow } from "../../components/admin/UserAdminMobileCard";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { api } from "../../lib/api";
 import { useAuthStore } from "../../store/useAuthStore";
+import { userStatusColor, userStatusLabel } from "../../lib/statusLabels";
 
 type UserRow = UserAdminRow;
 type UserTab = "all" | "new";
@@ -36,6 +40,7 @@ type FetchParams = {
   keyword?: string;
   role?: string;
   status?: string;
+  registrationSource?: string;
   tab: UserTab;
 };
 
@@ -51,6 +56,7 @@ async function fetchUsers(params: FetchParams) {
       keyword: params.keyword,
       role: params.role,
       status: params.status,
+      registrationSource: params.registrationSource,
       ...(params.tab === "new" ? { welcomeEmailPending: true } : {}),
     },
   });
@@ -75,6 +81,7 @@ type MobileFilters = {
   keyword?: string;
   role?: string;
   status?: string;
+  registrationSource?: string;
 };
 
 function AdminUsersMobileList({ tab }: { tab: UserTab }) {
@@ -96,6 +103,7 @@ function AdminUsersMobileList({ tab }: { tab: UserTab }) {
         keyword: filters.keyword,
         role: filters.role,
         status: filters.status,
+        registrationSource: filters.registrationSource,
         tab,
       }),
   });
@@ -148,6 +156,29 @@ function AdminUsersMobileList({ tab }: { tab: UserTab }) {
     },
   });
 
+  const changeSourceMut = useMutation({
+    mutationFn: ({
+      userId,
+      registrationSource,
+    }: {
+      userId: string;
+      registrationSource: "self" | "admin";
+    }) =>
+      api.patch(`/api/admin/users/${userId}/registration-source`, {
+        registrationSource,
+      }),
+    onSuccess: () => {
+      message.success(t("adminUsers.sourceChanged"));
+      invalidate();
+    },
+    onError: (err: Error) => {
+      const apiMessage = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string } | undefined)?.message
+        : undefined;
+      message.error(apiMessage ?? err.message);
+    },
+  });
+
   const onSearch = (values: MobileFilters) => {
     setFilters(values);
     setPage(1);
@@ -185,6 +216,15 @@ function AdminUsersMobileList({ tab }: { tab: UserTab }) {
             ]}
           />
         </Form.Item>
+        <Form.Item name="registrationSource" label={t("adminUsers.filterSource")}>
+          <Select
+            allowClear
+            options={[
+              { value: "self", label: t("adminUsers.sourceSelf") },
+              { value: "admin", label: t("adminUsers.sourceAdmin") },
+            ]}
+          />
+        </Form.Item>
         <Button type="primary" htmlType="submit" block>
           {t("adminUsers.search")}
         </Button>
@@ -210,6 +250,10 @@ function AdminUsersMobileList({ tab }: { tab: UserTab }) {
                 onUnblock={() => unblockMut.mutate(row.id)}
                 onResetDevice={() => resetDeviceMut.mutate(row.id)}
                 onSendEmail={() => sendEmailMut.mutate(row.id)}
+                onChangeSource={(registrationSource) =>
+                  changeSourceMut.mutate({ userId: row.id, registrationSource })
+                }
+                changeSourceLoading={changeSourceMut.isPending}
               />
             </List.Item>
           )}
@@ -236,6 +280,8 @@ function AdminUsersDesktopTable({ tab }: { tab: UserTab }) {
   const { message } = AntApp.useApp();
   const currentUser = useAuthStore((s) => s.user);
   const actionRef = useRef<ActionType | null>(null);
+  const [changeSourceRow, setChangeSourceRow] = useState<UserRow | null>(null);
+  const [changeSourceForm] = Form.useForm<{ registrationSource: "self" | "admin" }>();
 
   const blockMut = useMutation({
     mutationFn: (userId: string) => api.patch(`/api/admin/users/${userId}/block`, {}),
@@ -280,12 +326,44 @@ function AdminUsersDesktopTable({ tab }: { tab: UserTab }) {
     },
   });
 
-  const statusColor = (s: UserRow["status"]) => (s === "active" ? "green" : "red");
+  const changeSourceMut = useMutation({
+    mutationFn: ({
+      userId,
+      registrationSource,
+    }: {
+      userId: string;
+      registrationSource: "self" | "admin";
+    }) =>
+      api.patch(`/api/admin/users/${userId}/registration-source`, {
+        registrationSource,
+      }),
+    onSuccess: () => {
+      message.success(t("adminUsers.sourceChanged"));
+      setChangeSourceRow(null);
+      actionRef.current?.reload();
+    },
+    onError: (err: Error) => {
+      const apiMessage = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string } | undefined)?.message
+        : undefined;
+      message.error(apiMessage ?? err.message);
+    },
+  });
+
+  const openChangeSource = (row: UserRow) => {
+    setChangeSourceRow(row);
+    changeSourceForm.setFieldsValue({
+      registrationSource: row.registrationSource,
+    });
+  };
+
+  const statusColor = userStatusColor;
 
   const columns: ProColumns<UserRow>[] = [
     {
       title: "#",
       width: 48,
+      align: "center",
       search: false,
       render: (_, __, i) => i + 1,
     },
@@ -294,12 +372,14 @@ function AdminUsersDesktopTable({ tab }: { tab: UserTab }) {
       dataIndex: "email",
       search: false,
       ellipsis: true,
+      width: 240,
     },
     {
       title: t("adminUsers.fullName"),
       dataIndex: "fullName",
       search: false,
       ellipsis: true,
+      width: 150,
     },
     {
       title: t("adminUsers.search"),
@@ -309,18 +389,55 @@ function AdminUsersDesktopTable({ tab }: { tab: UserTab }) {
     {
       title: t("adminUsers.registrationSource"),
       dataIndex: "registrationSource",
+      valueType: "select",
+      hideInTable: true,
+      valueEnum: {
+        self: { text: t("adminUsers.sourceSelf") },
+        admin: { text: t("adminUsers.sourceAdmin") },
+      },
+    },
+    {
+      title: t("adminUsers.registrationSource"),
+      dataIndex: "registrationSource",
       search: false,
-      width: 120,
+      width: 112,
+      align: "center",
+      render: (_, row) => {
+        const label =
+          row.registrationSource === "admin"
+            ? t("adminUsers.sourceAdmin")
+            : t("adminUsers.sourceSelf");
+        return (
+          <Tooltip title={t("adminUsers.clickToChangeSource")}>
+            <Button
+              type="link"
+              size="small"
+              className="h-auto px-0!"
+              onClick={() => openChangeSource(row)}
+            >
+              {label}
+            </Button>
+          </Tooltip>
+        );
+      },
+    },
+    {
+      title: t("adminUsers.createdBy"),
+      dataIndex: "createdByAdmin",
+      search: false,
+      width: 130,
+      ellipsis: true,
       render: (_, row) =>
-        row.registrationSource === "admin"
-          ? t("adminUsers.sourceAdmin")
-          : t("adminUsers.sourceSelf"),
+        row.registrationSource === "admin" && row.createdByAdmin
+          ? row.createdByAdmin.fullName
+          : "—",
     },
     {
       title: t("adminUsers.emailStatus"),
       dataIndex: "welcomeEmailSentAt",
       search: false,
-      width: 140,
+      width: 120,
+      align: "center",
       render: (_, row) => {
         if (row.registrationSource !== "self") {
           return <Tag>{t("adminUsers.emailNotApplicable")}</Tag>;
@@ -338,6 +455,8 @@ function AdminUsersDesktopTable({ tab }: { tab: UserTab }) {
     {
       title: t("adminUsers.role"),
       dataIndex: "role",
+      width: 110,
+      align: "center",
       valueType: "select",
       valueEnum: {
         admin: { text: t("roles.admin") },
@@ -348,18 +467,25 @@ function AdminUsersDesktopTable({ tab }: { tab: UserTab }) {
     {
       title: t("common.status"),
       dataIndex: "status",
+      width: 130,
+      align: "center",
       valueType: "select",
       valueEnum: {
         active: { text: t("common.active") },
         blocked: { text: t("adminUsers.blockedStatus") },
       },
-      render: (_, row) => <Tag color={statusColor(row.status)}>{row.status}</Tag>,
+      render: (_, row) => (
+        <Tag color={statusColor(row.status)}>
+          {userStatusLabel(row.status, t)}
+        </Tag>
+      ),
     },
     {
       title: t("adminUsers.device"),
       dataIndex: "registeredDeviceId",
       search: false,
-      width: 130,
+      width: 100,
+      align: "center",
       render: (_, row) =>
         row.registeredDeviceId ? (
           <Tooltip title={row.registeredDeviceId}>
@@ -373,13 +499,15 @@ function AdminUsersDesktopTable({ tab }: { tab: UserTab }) {
       title: t("adminUsers.createdAt"),
       dataIndex: "createdAt",
       search: false,
+      width: 150,
       render: (_, row) => dayjs(row.createdAt).format("YYYY-MM-DD HH:mm"),
     },
     {
       title: t("common.actions"),
       valueType: "option",
-      width: 300,
       search: false,
+      fixed: "right",
+      width: 260,
       render: (_, row) => {
         const isSelf = currentUser?.id === row.id;
         const sendEmailEnabled = canSendWelcomeEmail(row);
@@ -392,14 +520,14 @@ function AdminUsersDesktopTable({ tab }: { tab: UserTab }) {
             title={t("adminUsers.confirmSendEmail")}
             onConfirm={() => sendEmailMut.mutate(row.id)}
           >
-            <Button type="link" loading={sendEmailMut.isPending}>
+            <Button type="link" size="small" loading={sendEmailMut.isPending}>
               {t("adminUsers.sendEmail")}
             </Button>
           </Popconfirm>
         ) : (
           <Tooltip key="send-email" title={sendEmailDisabledReason}>
             <span>
-              <Button type="link" disabled>
+              <Button type="link" size="small" disabled>
                 {t("adminUsers.sendEmail")}
               </Button>
             </span>
@@ -413,7 +541,7 @@ function AdminUsersDesktopTable({ tab }: { tab: UserTab }) {
               title={t("adminUsers.confirmUnblock")}
               onConfirm={() => unblockMut.mutate(row.id)}
             >
-              <Button type="link" loading={unblockMut.isPending}>
+              <Button type="link" size="small" loading={unblockMut.isPending}>
                 {t("adminUsers.unblock")}
               </Button>
             </Popconfirm>
@@ -424,7 +552,7 @@ function AdminUsersDesktopTable({ tab }: { tab: UserTab }) {
               onConfirm={() => blockMut.mutate(row.id)}
               disabled={isSelf}
             >
-              <Button type="link" danger disabled={isSelf} loading={blockMut.isPending}>
+              <Button type="link" size="small" danger disabled={isSelf} loading={blockMut.isPending}>
                 {t("adminUsers.block")}
               </Button>
             </Popconfirm>
@@ -436,47 +564,98 @@ function AdminUsersDesktopTable({ tab }: { tab: UserTab }) {
             title={t("adminUsers.confirmResetDevice")}
             onConfirm={() => resetDeviceMut.mutate(row.id)}
           >
-            <Button type="link" loading={resetDeviceMut.isPending}>
+            <Button type="link" size="small" loading={resetDeviceMut.isPending}>
               {t("adminUsers.resetDevice")}
             </Button>
           </Popconfirm>
         ) : (
           <Tooltip key="reset-device" title={t("adminUsers.resetDeviceDisabled")}>
             <span>
-              <Button type="link" disabled>
+              <Button type="link" size="small" disabled>
                 {t("adminUsers.resetDevice")}
               </Button>
             </span>
           </Tooltip>
         );
 
-        return [sendEmailAction, blockAction, resetDeviceAction];
+        return (
+          <div className="flex flex-nowrap items-center">
+            {sendEmailAction}
+            {blockAction}
+            {resetDeviceAction}
+          </div>
+        );
       },
     },
   ];
 
   return (
-    <ProTable<UserRow>
-      key={tab}
-      actionRef={actionRef}
-      rowKey="id"
-      columns={columns}
-      cardBordered
-      scroll={{ x: "max-content" }}
-      request={async (params) => {
-        const data = await fetchUsers({
-          page: params.current ?? 1,
-          limit: params.pageSize ?? 20,
-          keyword: typeof params.keyword === "string" ? params.keyword : undefined,
-          role: typeof params.role === "string" ? params.role : undefined,
-          status: typeof params.status === "string" ? params.status : undefined,
-          tab,
-        });
-        return { data: data.items, total: data.total, success: true };
-      }}
-      search={{ labelWidth: "auto" }}
-      pagination={{ pageSize: 20, showSizeChanger: true }}
-    />
+    <>
+      <ProTable<UserRow>
+        key={tab}
+        actionRef={actionRef}
+        rowKey="id"
+        columns={columns}
+        cardBordered
+        scroll={{ x: 1400 }}
+        className="admin-users-table"
+        request={async (params) => {
+          const data = await fetchUsers({
+            page: params.current ?? 1,
+            limit: params.pageSize ?? 20,
+            keyword: typeof params.keyword === "string" ? params.keyword : undefined,
+            role: typeof params.role === "string" ? params.role : undefined,
+            status: typeof params.status === "string" ? params.status : undefined,
+            registrationSource:
+              typeof params.registrationSource === "string"
+                ? params.registrationSource
+                : undefined,
+            tab,
+          });
+          return { data: data.items, total: data.total, success: true };
+        }}
+        search={{ labelWidth: "auto" }}
+        pagination={{ pageSize: 20, showSizeChanger: true }}
+      />
+
+      <Modal
+        title={t("adminUsers.changeSource")}
+        open={!!changeSourceRow}
+        onCancel={() => setChangeSourceRow(null)}
+        confirmLoading={changeSourceMut.isPending}
+        onOk={() => changeSourceForm.submit()}
+      >
+        <Form
+          form={changeSourceForm}
+          layout="vertical"
+          onFinish={(values) => {
+            if (!changeSourceRow) return;
+            changeSourceMut.mutate({
+              userId: changeSourceRow.id,
+              registrationSource: values.registrationSource,
+            });
+          }}
+        >
+          <Form.Item
+            name="registrationSource"
+            label={t("adminUsers.registrationSource")}
+            rules={[{ required: true }]}
+          >
+            <Select
+              options={[
+                { value: "self", label: t("adminUsers.sourceSelf") },
+                { value: "admin", label: t("adminUsers.sourceAdmin") },
+              ]}
+            />
+          </Form.Item>
+          {changeSourceRow ? (
+            <p className="text-sm text-slate-500">
+              {changeSourceRow.fullName} ({changeSourceRow.email})
+            </p>
+          ) : null}
+        </Form>
+      </Modal>
+    </>
   );
 }
 
@@ -517,9 +696,17 @@ export function AdminUsersPage() {
     <PageContainer
       title={t("menu.users")}
       extra={
-        <Button type="primary" onClick={() => setCreateOpen(true)}>
-          {t("adminUsers.createUser")}
-        </Button>
+        <Space wrap>
+          <AdminExcelTransferButtons
+            exportUrl="/api/admin/users/export"
+            importUrl="/api/admin/users/import"
+            templateUrl="/api/admin/users/export/template"
+            onImported={reload}
+          />
+          <Button type="primary" onClick={() => setCreateOpen(true)}>
+            {t("adminUsers.createUser")}
+          </Button>
+        </Space>
       }
     >
       <Tabs activeKey={tab} items={tabItems} onChange={(k) => setTab(k as UserTab)} />

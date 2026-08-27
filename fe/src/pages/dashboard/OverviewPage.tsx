@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   App as AntApp,
   Alert,
@@ -28,6 +28,7 @@ import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 
 import { LICENSE_PACKAGES_UI } from "../../config/licensePackages";
+import type { LicensePackagePeriod } from "../../config/licensePackages";
 
 const ORDER_EXPIRY_MS = 120 * 1000; // 2 phút
 
@@ -64,9 +65,9 @@ function formatCountdown(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 import { api } from "../../lib/api";
-import type { PackageCode } from "../../types/purchase";
 import type { PurchaseOrderDto } from "../../types/purchase";
 import { useAuthStore } from "../../store/useAuthStore";
+import { licenseStatusColor, licenseStatusLabel } from "../../lib/statusLabels";
 
 type AdminDashboardRes = {
   success: boolean;
@@ -122,11 +123,103 @@ function formatVnd(n: number) {
   return new Intl.NumberFormat("vi-VN").format(n);
 }
 
+type ApiPackage = {
+  code: string;
+  durationDays: number;
+  labelKey: string;
+  amountVnd: number;
+  originalAmountVnd: number;
+  promotion: {
+    id: string;
+    promoAmountVnd: number;
+    label: string | null;
+    startsAt: string;
+    endsAt: string;
+  } | null;
+};
+
+const GENERIC_PACKAGE_THEME =
+  "border-slate-200 bg-gradient-to-b from-slate-50/80 to-white";
+
+function inferPeriod(durationDays: number): LicensePackagePeriod {
+  if (durationDays === 1) return { unit: "day", days: 1 };
+  if (durationDays % 30 === 0 && durationDays >= 30) {
+    return { unit: "month", months: durationDays / 30 };
+  }
+  return { unit: "day", days: durationDays };
+}
+
+type DisplayPackage = {
+  code: string;
+  durationDays: number;
+  amountVnd: number;
+  originalAmountVnd: number;
+  promotion: ApiPackage["promotion"];
+  labelKey: string;
+  theme: string;
+  icon: string;
+  period: LicensePackagePeriod;
+  isGeneric: boolean;
+  i18nPrefix?: string;
+  advantageIds?: ("a1" | "a2" | "a3")[];
+};
+
+function useDisplayPackages() {
+  const query = useQuery({
+    queryKey: ["public-packages"],
+    queryFn: async () => {
+      const res = await api.get<{ success: boolean; items: ApiPackage[] }>(
+        "/api/packages",
+      );
+      return res.data.items;
+    },
+    staleTime: 60_000,
+  });
+
+  const displayPackages = useMemo((): DisplayPackage[] => {
+    const apiItems = query.data ?? [];
+    return apiItems.map((fromApi) => {
+      const ui = LICENSE_PACKAGES_UI.find((u) => u.code === fromApi.code);
+      if (ui) {
+        return {
+          code: fromApi.code,
+          durationDays: fromApi.durationDays,
+          amountVnd: fromApi.amountVnd,
+          originalAmountVnd: fromApi.originalAmountVnd,
+          promotion: fromApi.promotion,
+          labelKey: fromApi.labelKey,
+          theme: ui.theme,
+          icon: ui.icon,
+          period: ui.period,
+          isGeneric: false,
+          i18nPrefix: ui.i18nPrefix,
+          advantageIds: ui.advantageIds,
+        };
+      }
+      return {
+        code: fromApi.code,
+        durationDays: fromApi.durationDays,
+        amountVnd: fromApi.amountVnd,
+        originalAmountVnd: fromApi.originalAmountVnd,
+        promotion: fromApi.promotion,
+        labelKey: fromApi.labelKey,
+        theme: GENERIC_PACKAGE_THEME,
+        icon: "📦",
+        period: inferPeriod(fromApi.durationDays),
+        isGeneric: true,
+      };
+    });
+  }, [query.data]);
+
+  return { displayPackages, isLoading: query.isLoading };
+}
+
 function UserOverviewSection() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { message } = AntApp.useApp();
+  const { displayPackages } = useDisplayPackages();
 
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
@@ -241,7 +334,7 @@ function UserOverviewSection() {
   });
 
   const purchaseMutation = useMutation({
-    mutationFn: async (packageCode: PackageCode) => {
+    mutationFn: async (packageCode: string) => {
       const res = await api.post<{ success: boolean; order: PurchaseOrderDto }>(
         "/api/purchases",
         {
@@ -314,7 +407,7 @@ function UserOverviewSection() {
       });
     }
   }, [modalSecondsLeft, orderQuery, queryClient]);
-  const pricePerPeriod = (pkg: (typeof LICENSE_PACKAGES_UI)[number]) => {
+  const pricePerPeriod = (pkg: DisplayPackage) => {
     if (pkg.period.unit === "month") {
       return Math.round(pkg.amountVnd / pkg.period.months);
     }
@@ -379,7 +472,7 @@ function UserOverviewSection() {
       </Typography.Paragraph>
 
       <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {LICENSE_PACKAGES_UI.map((pkg) => (
+        {displayPackages.map((pkg) => (
           <div
             key={pkg.code}
             className={`flex h-full flex-col rounded-2xl border-2 p-5 shadow-sm ${pkg.theme}`}
@@ -387,13 +480,35 @@ function UserOverviewSection() {
             <div className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-800">
               <span aria-hidden>{pkg.icon}</span>
               <span>
-                {pkg.period.unit === "month"
-                  ? t("pages.packageDuration", { count: pkg.period.months })
-                  : t("pages.packageDurationDays", { count: pkg.period.days })}
+                {pkg.isGeneric
+                  ? pkg.labelKey
+                  : pkg.period.unit === "month"
+                    ? t("pages.packageDuration", { count: pkg.period.months })
+                    : t("pages.packageDurationDays", {
+                        count: pkg.period.days,
+                      })}
               </span>
             </div>
-            <div className="text-2xl font-bold text-slate-900">
-              {formatVnd(pkg.amountVnd)} ₫
+            <div className="mb-4">
+              {pkg.promotion ? (
+                <div className="space-y-1">
+                  <div className="text-sm text-slate-400 line-through">
+                    {formatVnd(pkg.originalAmountVnd)} ₫
+                  </div>
+                  <div className="text-2xl font-bold text-red-600">
+                    {formatVnd(pkg.amountVnd)} ₫
+                  </div>
+                  {pkg.promotion.label ? (
+                    <Tag color="red">{pkg.promotion.label}</Tag>
+                  ) : (
+                    <Tag color="red">{t("pages.onPromotion")}</Tag>
+                  )}
+                </div>
+              ) : (
+                <div className="text-2xl font-bold text-slate-900">
+                  {formatVnd(pkg.amountVnd)} ₫
+                </div>
+              )}
             </div>
             <div className="mb-4 text-sm text-slate-500">
               {pkg.period.unit === "month"
@@ -405,9 +520,17 @@ function UserOverviewSection() {
                   })}
             </div>
             <ul className="mb-6 flex-1 list-disc space-y-1 pl-4 text-sm text-slate-600">
-              {pkg.advantageIds.map((id) => (
-                <li key={id}>{t(`pages.${pkg.i18nPrefix}.${id}` as const)}</li>
-              ))}
+              {pkg.isGeneric ? (
+                <li>
+                  {t("pages.packageDurationDays", { count: pkg.durationDays })}
+                </li>
+              ) : (
+                pkg.advantageIds?.map((id) => (
+                  <li key={id}>
+                    {t(`pages.${pkg.i18nPrefix}.${id}` as const)}
+                  </li>
+                ))
+              )}
             </ul>
             <Button
               type="primary"
@@ -509,94 +632,6 @@ function UserOverviewSection() {
             </Button>
           </div>
         ) : null}
-      </ProCard>
-
-      <Typography.Title level={5} className="!mb-3">
-        {t("pages.yourLicenseSection")}
-      </Typography.Title>
-      <ProCard bordered className="max-w-2xl">
-        {purchasedUnused ? (
-          <Alert
-            type="success"
-            showIcon
-            className="mb-4"
-            message={t("pages.purchasedUnusedTitle")}
-            description={
-              isFullLicenseKey(purchasedUnused.licenseKey) ? (
-                <div className="space-y-2">
-                  <span>{t("pages.purchasedUnusedHintShort")}</span>
-                  <div>
-                    <Typography.Text type="secondary" className="text-xs">
-                      {t("pages.licenseKeyLabel")}
-                    </Typography.Text>
-                    <div className="mt-1">
-                      <Typography.Text code copyable className="text-sm">
-                        {purchasedUnused.licenseKey}
-                      </Typography.Text>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                t("pages.purchasedUnusedHint", {
-                  preview: purchasedUnused.licenseKeyPreview,
-                })
-              )
-            }
-          />
-        ) : null}
-        {userLicenseQuery.isLoading ? (
-          <span className="text-slate-500">{t("common.loading")}</span>
-        ) : lic ? (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-medium">
-                {t("pages.currentLicenseTitle")}
-              </span>
-              <Tag
-                color={
-                  lic.status === "active"
-                    ? "green"
-                    : lic.status === "blocked"
-                      ? "red"
-                      : "default"
-                }
-              >
-                {lic.status}
-              </Tag>
-            </div>
-            <div className="text-sm text-slate-600">
-              {t("pages.expiresAt")}:{" "}
-              {lic.expiresAt
-                ? dayjs(lic.expiresAt).format("YYYY-MM-DD HH:mm")
-                : t("adminLicenses.lifetime")}
-            </div>
-            {lic.activatedAt ? (
-              <div className="text-sm text-slate-600">
-                {t("pages.activatedAtLabel")}:{" "}
-                {dayjs(lic.activatedAt).format("YYYY-MM-DD HH:mm")}
-              </div>
-            ) : null}
-            {lic.durationDays != null ? (
-              <div className="text-xs text-slate-500">
-                {t("pages.licenseValidityExplain")}
-              </div>
-            ) : null}
-            <div className="text-sm text-slate-600">
-              {t("pages.maxDevices")}: {lic.maxDevices} ·{" "}
-              {t("pages.devicesTitle")}: {lic.devices.length}
-            </div>
-            <Button type="primary" onClick={() => navigate("/my-license")}>
-              {t("pages.openMyLicense")}
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-slate-600">{t("pages.noLicenseYet")}</p>
-            <Button type="primary" onClick={() => navigate("/my-license")}>
-              {t("pages.openMyLicense")}
-            </Button>
-          </div>
-        )}
       </ProCard>
 
       <Modal
@@ -729,6 +764,7 @@ function AdminTestPurchaseSection() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { message } = AntApp.useApp();
+  const { displayPackages } = useDisplayPackages();
 
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
@@ -760,7 +796,7 @@ function AdminTestPurchaseSection() {
   });
 
   const purchaseMutation = useMutation({
-    mutationFn: async (packageCode: PackageCode) => {
+    mutationFn: async (packageCode: string) => {
       const res = await api.post<{ success: boolean; order: PurchaseOrderDto }>(
         "/api/purchases",
         { packageCode },
@@ -795,7 +831,7 @@ function AdminTestPurchaseSection() {
   });
 
   const order = orderQuery.data;
-  const adminPackages = LICENSE_PACKAGES_UI.filter((p) => p.code === "PKG_1D");
+  const adminPackages = displayPackages.filter((p) => p.code === "PKG_1D");
   const modalSecondsLeft = useOrderCountdown(
     order?.status === "pending" ? order.createdAt : undefined,
   );

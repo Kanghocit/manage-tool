@@ -17,6 +17,7 @@ import { useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
 
 import { api } from "../../lib/api";
+import { licenseStatusColor, licenseStatusLabel } from "../../lib/statusLabels";
 import {
   WEB_DEVICE_ID_STORAGE_KEY,
   getOrCreateWebDeviceId,
@@ -173,17 +174,9 @@ export function MyLicensePage() {
     },
   });
 
-  const statusTag = (status: string) => {
-    const color =
-      status === "active"
-        ? "green"
-        : status === "blocked"
-          ? "red"
-          : status === "expired"
-            ? "default"
-            : "blue";
-    return <Tag color={color}>{status}</Tag>;
-  };
+  const statusTag = (status: string) => (
+    <Tag color={licenseStatusColor(status)}>{licenseStatusLabel(status, t)}</Tag>
+  );
 
   return (
     <PageContainer

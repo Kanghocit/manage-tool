@@ -20,6 +20,8 @@ import { adminPurchasesRouter } from './routes/adminPurchases'
 import { adminLicenseRequestsRouter } from './routes/adminLicenseRequests'
 import { sepayWebhookRouter } from './routes/sepayWebhook'
 import { privacyRouter } from './routes/privacy'
+import { adminLicensePackagesRouter } from './routes/adminLicensePackages'
+import { packagesRouter } from './routes/packages'
 import { licenseRequestsRouter } from './routes/licenseRequests'
 
 export const createApp = () => {
@@ -130,6 +132,17 @@ export const createApp = () => {
       legacyHeaders: false,
     }),
     purchasesRouter,
+  )
+  app.use('/api/packages', packagesRouter)
+  app.use(
+    '/api/admin/license-packages',
+    rateLimit({
+      windowMs: 60 * 1000,
+      limit: 120,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+    adminLicensePackagesRouter,
   )
   app.use(
     '/api/license-requests',

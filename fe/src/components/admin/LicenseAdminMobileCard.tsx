@@ -2,6 +2,8 @@ import { Button, Card, Tag } from "antd";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 
+import { licenseStatusColor, licenseStatusLabel } from "../../lib/statusLabels";
+
 export type LicenseAdminRow = {
   id: string;
   licenseKey: string | null;
@@ -22,12 +24,7 @@ type Props = {
 export function LicenseAdminMobileCard({ row, onDetail }: Props) {
   const { t } = useTranslation();
 
-  const statusColor = (s: string) => {
-    if (s === "active") return "green";
-    if (s === "blocked") return "red";
-    if (s === "expired") return "default";
-    return "blue";
-  };
+  const statusColor = licenseStatusColor;
 
   return (
     <Card size="small" className="admin-mobile-card w-full">
@@ -39,7 +36,7 @@ export function LicenseAdminMobileCard({ row, onDetail }: Props) {
         )}
       </div>
       <Tag color={statusColor(row.status)} className="mb-2">
-        {row.status}
+        {licenseStatusLabel(row.status, t)}
       </Tag>
       <div className="mb-1 text-sm text-slate-600">
         {t("adminLicenses.durationDays")}:{" "}

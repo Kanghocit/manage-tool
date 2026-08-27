@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import {
+  BookOutlined,
   DashboardOutlined,
+  DollarOutlined,
   FileTextOutlined,
   KeyOutlined,
   LogoutOutlined,
@@ -24,12 +26,14 @@ import type { MenuKey, NavRoute } from "../types/nav";
 import { useAuthStore } from "../store/useAuthStore";
 
 import { OverviewPage } from "../pages/dashboard/OverviewPage";
+import { UserGuidePage } from "../pages/dashboard/UserGuidePage";
 import { MyLicensePage } from "../pages/dashboard/MyLicensePage";
 import { ProfilePage } from "../pages/dashboard/ProfilePage";
 import { AdminLicensesPage } from "../pages/admin/AdminLicensesPage";
 import { AdminLicenseCreatePage } from "../pages/admin/AdminLicenseCreatePage";
 import { AdminLicenseDetailPage } from "../pages/admin/AdminLicenseDetailPage";
 import { AdminUsersPage } from "../pages/admin/AdminUsersPage";
+import { AdminLicensePackagesPage } from "../pages/admin/AdminLicensePackagesPage";
 import { AdminLicenseRequestsPage } from "../pages/admin/AdminLicenseRequestsPage";
 
 export function DashboardShell() {
@@ -47,6 +51,11 @@ export function DashboardShell() {
         name: t("menu.overview"),
       },
       {
+        path: "/guide",
+        icon: <BookOutlined />,
+        name: t("menu.guide"),
+      },
+      {
         path: "/my-license",
         icon: <KeyOutlined />,
         name: t("menu.myLicense"),
@@ -61,6 +70,11 @@ export function DashboardShell() {
           path: "/admin/licenses",
           icon: <SafetyOutlined />,
           name: t("menu.licenses"),
+        },
+        {
+          path: "/admin/license-packages",
+          icon: <DollarOutlined />,
+          name: t("menu.licensePackages"),
         },
         {
           path: "/admin/license-requests",
@@ -167,9 +181,10 @@ export function DashboardShell() {
       contentStyle={{ padding: 0 }}
     >
       <div className="min-h-screen bg-[#f5f7fb] pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0px,env(safe-area-inset-left))] pr-[max(0px,env(safe-area-inset-right))]">
-        <div className="mx-auto max-w-[1600px] p-3 sm:p-4 md:p-6">
+        <div className="mx-auto w-full max-w-[1920px] p-3 sm:p-4 md:p-6">
           <Routes>
             <Route path="/dashboard" element={<OverviewPage />} />
+            <Route path="/guide" element={<UserGuidePage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route
               path="/my-license"
@@ -200,6 +215,14 @@ export function DashboardShell() {
               element={
                 <ProtectedRoute roles={["admin"]}>
                   <AdminLicensesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/license-packages"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <AdminLicensePackagesPage />
                 </ProtectedRoute>
               }
             />

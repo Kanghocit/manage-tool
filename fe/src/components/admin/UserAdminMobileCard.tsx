@@ -1,6 +1,9 @@
-import { Button, Card, Popconfirm, Space, Tag, Tooltip } from "antd";
+import { Button, Card, Modal, Popconfirm, Select, Space, Tag, Tooltip } from "antd";
 import dayjs from "dayjs";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+
+import { userStatusColor, userStatusLabel } from "../../lib/statusLabels";
 
 export type UserAdminRow = {
   id: string;
@@ -13,6 +16,11 @@ export type UserAdminRow = {
   registrationSource: "self" | "admin";
   welcomeEmailSentAt: string | null;
   hasWelcomeTrialLicense: boolean;
+  createdByAdmin: {
+    id: string;
+    fullName: string;
+    email: string;
+  } | null;
 };
 
 type Props = {
@@ -22,10 +30,12 @@ type Props = {
   unblockLoading: boolean;
   resetDeviceLoading: boolean;
   sendEmailLoading: boolean;
+  changeSourceLoading?: boolean;
   onBlock: () => void;
   onUnblock: () => void;
   onResetDevice: () => void;
   onSendEmail: () => void;
+  onChangeSource: (registrationSource: "self" | "admin") => void;
 };
 
 function canSendWelcomeEmail(row: UserAdminRow) {
@@ -49,13 +59,17 @@ export function UserAdminMobileCard({
   unblockLoading,
   resetDeviceLoading,
   sendEmailLoading,
+  changeSourceLoading,
   onBlock,
   onUnblock,
   onResetDevice,
   onSendEmail,
+  onChangeSource,
 }: Props) {
   const { t } = useTranslation();
-  const statusColor = row.status === "active" ? "green" : "red";
+  const [sourceModalOpen, setSourceModalOpen] = useState(false);
+  const [nextSource, setNextSource] = useState<"self" | "admin">(row.registrationSource);
+  const statusColor = userStatusColor;
   const sendEmailEnabled = canSendWelcomeEmail(row);
   const sendEmailDisabledReason = getSendEmailDisabledReason(row, t);
   const resetDeviceEnabled = !!row.registeredDeviceId;
@@ -66,12 +80,25 @@ export function UserAdminMobileCard({
       <div className="mb-2 text-sm text-slate-600 break-all">{row.email}</div>
       <Space wrap className="mb-2">
         <Tag>{t(`roles.${row.role}`)}</Tag>
-        <Tag color={statusColor}>{row.status}</Tag>
-        <Tag>
-          {row.registrationSource === "admin"
-            ? t("adminUsers.sourceAdmin")
-            : t("adminUsers.sourceSelf")}
-        </Tag>
+        <Tag color={statusColor(row.status)}>{userStatusLabel(row.status, t)}</Tag>
+        <Tooltip title={t("adminUsers.clickToChangeSource")}>
+          <Tag
+            className="cursor-pointer"
+            onClick={() => {
+              setNextSource(row.registrationSource);
+              setSourceModalOpen(true);
+            }}
+          >
+            {row.registrationSource === "admin"
+              ? t("adminUsers.sourceAdmin")
+              : t("adminUsers.sourceSelf")}
+          </Tag>
+        </Tooltip>
+        {row.registrationSource === "admin" && row.createdByAdmin ? (
+          <Tag color="purple">
+            {t("adminUsers.createdBy")}: {row.createdByAdmin.fullName}
+          </Tag>
+        ) : null}
         {row.registrationSource === "self" ? (
           row.welcomeEmailSentAt ? (
             <Tag color="green">{t("adminUsers.emailSentStatus")}</Tag>
@@ -139,6 +166,24 @@ export function UserAdminMobileCard({
           </Tooltip>
         )}
       </Space>
+
+      <Modal
+        title={t("adminUsers.changeSource")}
+        open={sourceModalOpen}
+        onCancel={() => setSourceModalOpen(false)}
+        confirmLoading={changeSourceLoading}
+        onOk={() => onChangeSource(nextSource)}
+      >
+        <Select
+          className="w-full"
+          value={nextSource}
+          onChange={setNextSource}
+          options={[
+            { value: "self", label: t("adminUsers.sourceSelf") },
+            { value: "admin", label: t("adminUsers.sourceAdmin") },
+          ]}
+        />
+      </Modal>
     </Card>
   );
 }

@@ -9,8 +9,20 @@ import {
   DuplicateLicenseKeyError,
 } from "../lib/createUnusedLicense";
 import { licenseKeyPreview } from "../utils/licenseKey";
+import { cellNumber, cellString, rowsToXlsxBuffer, sendXlsxDownload, xlsxBufferToRows } from "../lib/excel";
+import { excelUpload } from "../middleware/upload";
 
 const admin = [requireAuth, requireRole("admin")];
+
+const MAX_IMPORT_ROWS = 500;
+const MAX_EXPORT_ROWS = 10_000;
+
+const LICENSE_EXPORT_HEADERS = [
+  "licenseKey", "licenseKeyPreview", "status", "durationDays", "maxDevices",
+  "expiresAt", "activatedByEmail", "activatedAt", "notes", "createdAt",
+] as const;
+
+const LICENSE_IMPORT_HEADERS = ["durationDays", "maxDevices", "notes", "licenseKey"] as const;
 
 const createSchema = z.object({
   durationDays: z.number().int().positive().nullable().optional(),
@@ -127,6 +139,106 @@ adminLicensesRouter.post("/", async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+
+adminLicensesRouter.get("/export/template", (_req, res) => {
+  const buffer = rowsToXlsxBuffer(
+    "Licenses",
+    [{ durationDays: 30, maxDevices: 1, notes: "Imported license", licenseKey: "" }],
+    [...LICENSE_IMPORT_HEADERS],
+  );
+  sendXlsxDownload(res, "licenses-import-template.xlsx", buffer);
+});
+
+adminLicensesRouter.get("/export", async (req, res, next) => {
+  try {
+    const parsed = listQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, code: "INVALID_PAYLOAD", message: "Invalid export query." });
+    }
+    const { status, keyword } = parsed.data;
+    const where: Prisma.LicenseWhereInput = { deletedAt: null };
+    if (status) where.status = status;
+    const kw = keyword?.trim();
+    if (kw) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(kw);
+      where.OR = [
+        { licenseKeyPreview: { contains: kw, mode: "insensitive" } },
+        { licenseKeyPlain: { contains: kw, mode: "insensitive" } },
+        ...(isUuid ? [{ id: kw }] : []),
+      ];
+    }
+    const rows = await prisma.license.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: MAX_EXPORT_ROWS,
+      include: { activatedBy: { select: { email: true } } },
+    });
+    const data = rows.map((l) => ({
+      licenseKey: l.licenseKeyPlain ?? "",
+      licenseKeyPreview: l.licenseKeyPreview,
+      status: l.status,
+      durationDays: l.durationDays ?? "",
+      maxDevices: l.maxDevices,
+      expiresAt: l.expiresAt?.toISOString() ?? "",
+      activatedByEmail: l.activatedBy?.email ?? "",
+      activatedAt: l.activatedAt?.toISOString() ?? "",
+      notes: l.notes ?? "",
+      createdAt: l.createdAt.toISOString(),
+    }));
+    const buffer = rowsToXlsxBuffer("Licenses", data, [...LICENSE_EXPORT_HEADERS]);
+    sendXlsxDownload(res, `licenses-${new Date().toISOString().slice(0, 10)}.xlsx`, buffer);
+  } catch (err) { next(err); }
+});
+
+adminLicensesRouter.post("/import", excelUpload.single("file"), async (req, res, next) => {
+  try {
+    const actorId = req.auth!.userId;
+    if (!req.file?.buffer) {
+      return res.status(400).json({ success: false, code: "NO_FILE", message: "Excel file is required." });
+    }
+    const rawRows = xlsxBufferToRows(req.file.buffer);
+    if (rawRows.length === 0) {
+      return res.status(400).json({ success: false, code: "EMPTY_FILE", message: "Excel file has no data rows." });
+    }
+    if (rawRows.length > MAX_IMPORT_ROWS) {
+      return res.status(400).json({ success: false, code: "TOO_MANY_ROWS", message: `Maximum ${MAX_IMPORT_ROWS} rows per import.` });
+    }
+    const created: { licenseKey: string }[] = [];
+    const skipped: { row: number; reason: string }[] = [];
+    for (let i = 0; i < rawRows.length; i += 1) {
+      const rowNum = i + 2;
+      const row = rawRows[i];
+      const durationDays = cellNumber(row, "durationDays");
+      const maxDevicesRaw = cellNumber(row, "maxDevices");
+      const notes = cellString(row, "notes") || null;
+      const licenseKey = cellString(row, "licenseKey") || null;
+      if (!durationDays || durationDays <= 0) {
+        skipped.push({ row: rowNum, reason: "durationDays must be a positive number." });
+        continue;
+      }
+      const maxDevices = maxDevicesRaw && maxDevicesRaw >= 1 ? Math.min(maxDevicesRaw, 50) : 1;
+      try {
+        const license = await createUnusedLicense(prisma, {
+          durationDays,
+          maxDevices,
+          notes,
+          createdById: actorId,
+          customKey: licenseKey || undefined,
+        });
+        created.push({ licenseKey: license.licenseKeyPlain! });
+      } catch (err) {
+        if (err instanceof DuplicateLicenseKeyError) {
+          skipped.push({ row: rowNum, reason: "License key already exists." });
+          continue;
+        }
+        throw err;
+      }
+    }
+    await audit(actorId, "admin.license.import", "license", "bulk", { created: created.length, skipped: skipped.length });
+    return res.json({ success: true, createdCount: created.length, skippedCount: skipped.length, created, skipped });
+  } catch (err) { next(err); }
 });
 
 adminLicensesRouter.get("/", async (req, res, next) => {
