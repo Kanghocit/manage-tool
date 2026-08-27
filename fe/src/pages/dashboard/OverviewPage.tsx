@@ -25,7 +25,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import dayjs from "dayjs";
 
 import { LICENSE_PACKAGES_UI } from "../../config/licensePackages";
 import type { LicensePackagePeriod } from "../../config/licensePackages";
@@ -67,7 +66,6 @@ function formatCountdown(seconds: number): string {
 import { api } from "../../lib/api";
 import type { PurchaseOrderDto } from "../../types/purchase";
 import { useAuthStore } from "../../store/useAuthStore";
-import { licenseStatusColor, licenseStatusLabel } from "../../lib/statusLabels";
 
 type AdminDashboardRes = {
   success: boolean;
@@ -96,26 +94,6 @@ type LicenseRequestMeRes = {
     fulfilledLicenseId: string | null;
     createdAt: string;
     reviewedAt: string | null;
-  } | null;
-};
-
-type LicenseMeRes = {
-  success: boolean;
-  license: {
-    status: string;
-    expiresAt: string | null;
-    durationDays: number | null;
-    activatedAt: string | null;
-    maxDevices: number;
-    devices: { deviceId: string; lastSeenAt: string | null }[];
-  } | null;
-  /** New key from purchase; still unused until user activates on My License */
-  purchasedUnusedLicense: {
-    id: string;
-    licenseKey: string | null;
-    licenseKeyPreview: string;
-    durationDays: number | null;
-    purchaseOrderId: string | null;
   } | null;
 };
 
@@ -249,25 +227,6 @@ function UserOverviewSection() {
   });
   const pendingOrder = pendingOrderQuery.data ?? null;
 
-  const userLicenseQuery = useQuery({
-    queryKey: ["license-me-overview"],
-    queryFn: async (): Promise<LicenseMeRes> => {
-      try {
-        return (await api.get<LicenseMeRes>("/api/license/me")).data;
-      } catch (e) {
-        if (
-          axios.isAxiosError(e) &&
-          e.response?.status === 404 &&
-          (e.response.data as { code?: string })?.code === "NO_LICENSE"
-        ) {
-          return { success: true, license: null, purchasedUnusedLicense: null };
-        }
-        throw e;
-      }
-    },
-    refetchOnWindowFocus: true,
-  });
-
   const orderQuery = useQuery({
     queryKey: ["purchase-order", activeOrderId],
     enabled: payModalOpen && !!activeOrderId,
@@ -383,19 +342,21 @@ function UserOverviewSection() {
     },
   });
 
-  const lic = userLicenseQuery.data?.license;
-  const purchasedUnused = userLicenseQuery.data?.purchasedUnusedLicense ?? null;
   const licenseRequest = licenseRequestQuery.data ?? null;
+
   const canSubmitLicenseRequest =
     !licenseRequest || licenseRequest.status !== "pending";
-  const isFullLicenseKey = (key: string | null | undefined) =>
-    !!key && !key.includes("*");
+
   const order = orderQuery.data;
+
   const pendingCreatedAt =
     order?.status === "pending" ? order.createdAt : undefined;
+
   const pendingBannerCreatedAt =
     pendingOrder?.status === "pending" ? pendingOrder.createdAt : undefined;
+
   const modalSecondsLeft = useOrderCountdown(pendingCreatedAt);
+
   const bannerSecondsLeft = useOrderCountdown(pendingBannerCreatedAt);
 
   // When the modal countdown hits 0, refetch order to confirm expired status.
