@@ -21,13 +21,14 @@ import {
 import { useSupportSocket } from "../../hooks/useSupportSocket";
 import { api } from "../../lib/api";
 import { sendSupportMessageRest } from "../../lib/supportApi";
+import { useSupportChat } from "../../contexts/SupportChatContext";
 import type { SupportFaqItem, SupportMessage, SupportSession, SupportWsEvent } from "../../types/support";
 
 export function SupportChatWidget() {
   const { t } = useTranslation();
   const { message } = AntApp.useApp();
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const { open, closeChat, toggleChat } = useSupportChat();
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [session, setSession] = useState<SupportSession | null>(null);
@@ -199,7 +200,7 @@ export function SupportChatWidget() {
             type="text"
             size="small"
             icon={<CloseOutlined className="!text-white" />}
-            onClick={() => setOpen(false)}
+            onClick={closeChat}
           />
         </div>
       </div>
@@ -207,13 +208,13 @@ export function SupportChatWidget() {
       <SupportConnectionBanner connected={connected} connecting={connecting} />
 
       {(faqQuery.data?.length ?? 0) > 0 && (
-        <div className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-slate-100 bg-slate-50 px-3 py-2">
+        <div className="flex shrink-0 flex-wrap gap-1.5 border-b border-slate-100 bg-slate-50 px-3 py-2">
           {faqQuery.data?.map((faq) => (
             <button
               key={faq.id}
               type="button"
               disabled={faqMut.isPending}
-              className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 hover:border-blue-300 hover:text-blue-600 disabled:opacity-50"
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-left text-xs leading-snug text-slate-700 wrap-break-word hover:border-blue-300 hover:text-blue-600 disabled:opacity-50"
               onClick={() => void handleFaqClick(faq)}
             >
               {faq.question}
@@ -284,7 +285,7 @@ export function SupportChatWidget() {
         type="primary"
         className="!bg-[#2563EB]"
         tooltip={t("support.title")}
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleChat}
         badge={{ dot: session?.status === "waiting_admin" }}
       />
     </>

@@ -69,3 +69,30 @@ body {
 .admin-users-table .ant-tag {
   margin-inline-end: 0;
 }
+
+/* Sidebar menu: wrap long labels instead of truncating */
+.ant-pro-sider .ant-menu-item,
+.ant-pro-sider .ant-menu-submenu-title {
+  height: auto !important;
+  min-height: 40px;
+  line-height: 1.35 !important;
+  white-space: normal !important;
+  padding-block: 8px !important;
+}
+
+.ant-pro-sider .ant-menu-title-content {
+  overflow: visible !important;
+  white-space: normal !important;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.ant-pro-sider .ant-menu-item .anticon + .ant-menu-title-content,
+.ant-pro-sider .ant-menu-submenu-title .anticon + .ant-menu-title-content {
+  overflow: visible;
+}
+
+.support-menu-active.ant-menu-item,
+a.support-menu-active {
+  color: #1677ff;
+}
