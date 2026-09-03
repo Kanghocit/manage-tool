@@ -7,6 +7,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuthStore } from "./store/useAuthStore";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
+import { ExtensionHandoffPage } from "./pages/auth/ExtensionHandoffPage";
 import { DashboardShell } from "./layouts/DashboardShell";
 
 export function AppRoutes() {
@@ -25,6 +26,10 @@ export function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route
+          path="/auth/extension"
+          element={<ExtensionHandoffPage />}
+        />
         <Route
           path="/login"
           element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />}

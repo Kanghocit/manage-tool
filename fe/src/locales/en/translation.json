@@ -4,6 +4,7 @@
   },
   "auth": {
     "loginSuccess": "Login successful.",
+    "handoffLoading": "Signing you in from the extension…",
     "registerSuccess": "Account created.",
     "signIn": "Sign in",
     "register": "Register",

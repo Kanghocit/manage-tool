@@ -8,12 +8,17 @@ import {
   signAccessToken,
   signRefreshToken,
   verifyRefreshToken,
+  type JwtRole,
 } from "../lib/jwt";
 import { env } from "../config/env";
 import { parseDurationToMs } from "../utils/duration";
 import { sha256Hex } from "../utils/crypto";
 import rateLimit from "express-rate-limit";
 import { requireAuth } from "../middleware/auth";
+import {
+  consumeAuthHandoffCode,
+  createAuthHandoffCode,
+} from "../lib/authHandoffService";
 
 const deviceIdSchema = z.string().min(8).max(128);
 
@@ -43,6 +48,10 @@ const changePasswordSchema = z.object({
   newPassword: z.string().min(6),
 });
 
+const handoffExchangeSchema = z.object({
+  code: z.string().min(16).max(256),
+});
+
 const sanitizeUser = (user: {
   id: string;
   email: string;
@@ -59,6 +68,32 @@ const sanitizeUser = (user: {
 
 const refreshTokenHash = (token: string) =>
   sha256Hex(`${env.refreshTokenPepper}:${token}`);
+
+async function issueUserSession(user: {
+  id: string;
+  email: string;
+  fullName: string;
+  role: JwtRole;
+  status: string;
+}) {
+  const accessToken = signAccessToken({ sub: user.id, role: user.role });
+  const refreshToken = signRefreshToken({ sub: user.id, role: user.role });
+  const expiresAt = new Date(Date.now() + parseDurationToMs(env.jwt.refreshTtl));
+
+  await prisma.refreshToken.create({
+    data: {
+      userId: user.id,
+      tokenHash: refreshTokenHash(refreshToken),
+      expiresAt,
+    },
+  });
+
+  return {
+    accessToken,
+    refreshToken,
+    user: sanitizeUser(user),
+  };
+}
 
 export const authRouter = express.Router();
 
@@ -410,3 +445,67 @@ authRouter.post("/change-password", requireAuth, async (req, res, next) => {
     next(err);
   }
 });
+
+authRouter.post("/handoff", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.auth!.userId;
+    const redirect = typeof req.body?.redirect === "string" ? req.body.redirect : "/support";
+    const safeRedirect =
+      redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/support";
+
+    const handoff = await createAuthHandoffCode(userId);
+    const base = env.appPublicUrl.replace(/\/$/, "");
+
+    return res.json({
+      success: true,
+      code: handoff.code,
+      expiresIn: handoff.expiresIn,
+      redirect: safeRedirect,
+      url: `${base}/auth/extension?code=${encodeURIComponent(handoff.code)}&redirect=${encodeURIComponent(safeRedirect)}`,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post(
+  "/handoff/exchange",
+  rateLimit({
+    windowMs: 60 * 1000,
+    limit: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+  }),
+  async (req, res, next) => {
+    try {
+      const parsed = handoffExchangeSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          code: "INVALID_PAYLOAD",
+          message: "Invalid handoff payload.",
+        });
+      }
+
+      const user = await consumeAuthHandoffCode(parsed.data.code);
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          code: "HANDOFF_INVALID",
+          message: "Handoff code is invalid or expired.",
+        });
+      }
+
+      const session = await issueUserSession({
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        status: user.status,
+      });
+      return res.json({ success: true, ...session });
+    } catch (err) {
+      next(err);
+    }
+  },
+);

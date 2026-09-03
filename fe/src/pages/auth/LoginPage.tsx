@@ -1,10 +1,11 @@
 import { App as AntApp, Button, Form, Input, Typography } from "antd";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
 import { useAuthStore } from "../../store/useAuthStore";
+import { sanitizeAppRedirect } from "../../lib/safeRedirect";
 import { AuthShell } from "./AuthShell";
 
 function authErrorMessage(err: unknown): string {
@@ -21,10 +22,18 @@ function authErrorMessage(err: unknown): string {
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { message } = AntApp.useApp();
   const setSession = useAuthStore((state) => state.setSession);
   const { t } = useTranslation();
   const [form] = Form.useForm<{ email: string; password: string }>();
+
+  const redirectTo = sanitizeAppRedirect(
+    searchParams.get("redirect") ??
+      (location.state as { from?: { pathname?: string } } | null)?.from?.pathname,
+    "/my-license",
+  );
 
   const mutation = useMutation({
     mutationFn: (values: { email: string; password: string }) =>
@@ -42,9 +51,12 @@ export function LoginPage() {
     }) => {
       setSession(data.user, data.accessToken, data.refreshToken);
       message.success(t("auth.loginSuccess"));
-      navigate(data.user.role === "admin" ? "/dashboard" : "/my-license", {
-        replace: true,
-      });
+      navigate(
+        data.user.role === "admin" && redirectTo === "/my-license"
+          ? "/dashboard"
+          : redirectTo,
+        { replace: true },
+      );
     },
     onError: (error: unknown) => {
       const code = axios.isAxiosError(error)

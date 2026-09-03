@@ -82,8 +82,23 @@ model User {
   reviewedLicenseRequests  LicenseRequest[]     @relation("LicenseRequestReviewer")
   createdPackagePromotions LicensePackagePromotion[] @relation("PackagePromotionCreator")
   supportSessions          SupportSession[]
+  authHandoffCodes         AuthHandoffCode[]
 
   @@index([registrationSource, welcomeEmailSentAt])
+}
+
+model AuthHandoffCode {
+  id        String    @id @default(uuid())
+  userId    String
+  codeHash  String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
 }
 
 model LicensePackage {

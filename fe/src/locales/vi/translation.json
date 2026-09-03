@@ -4,6 +4,7 @@
   },
   "auth": {
     "loginSuccess": "Đăng nhập thành công.",
+    "handoffLoading": "Đang chuyển phiên đăng nhập từ extension…",
     "registerSuccess": "Tạo tài khoản thành công.",
     "signIn": "Đăng nhập",
     "register": "Đăng ký",
