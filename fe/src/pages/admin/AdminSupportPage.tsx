@@ -49,7 +49,7 @@ function SessionListItem({
   onClick: () => void;
 }) {
   const { t } = useTranslation();
-  const lastMsg = item.messages?.[item.messages.length - 1];
+  const lastMsg = item.messages?.[0];
   const preview = lastMsg?.content ?? t("support.emptyHint");
 
   return (
@@ -142,8 +142,11 @@ export function AdminSupportPage() {
           navigate("/admin/support", { replace: true });
         }
       }
-      if (event.type === "message:new" && event.sessionId === selectedId) {
-        appendMessages([event.message]);
+      if (event.type === "message:new") {
+        void queryClient.invalidateQueries({ queryKey: ["admin-support-sessions"] });
+        if (event.sessionId === selectedId) {
+          appendMessages([event.message]);
+        }
       }
     },
     [appendMessages, navigate, queryClient, selectedId],

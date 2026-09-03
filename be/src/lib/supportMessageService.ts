@@ -3,6 +3,7 @@ import type { SupportMessageSender } from "@prisma/client";
 import { matchSupportFaq } from "../config/supportFaq";
 import { env } from "../config/env";
 import { prisma } from "./prisma";
+import { touchSupportSession } from "./supportSessionService";
 import { serializeMessage, type SerializedSupportMessage } from "./supportSerialize";
 import {
   formatSupportTelegramMessage,
@@ -89,6 +90,8 @@ export async function sendSupportMessage(
   const userMessage = await prisma.supportMessage.create({
     data: { sessionId, sender, content: trimmed },
   });
+
+  await touchSupportSession(sessionId);
 
   const messages: SerializedSupportMessage[] = [serializeMessage(userMessage)];
 

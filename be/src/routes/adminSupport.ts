@@ -31,9 +31,21 @@ adminSupportRouter.get("/sessions", async (req, res, next) => {
       },
     });
 
+    const latestByUser = new Map<string, (typeof sessions)[number]>();
+    for (const row of sessions) {
+      const prev = latestByUser.get(row.userId);
+      if (!prev || row.updatedAt > prev.updatedAt) {
+        latestByUser.set(row.userId, row);
+      }
+    }
+
+    const items = [...latestByUser.values()]
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+      .map((row) => serializeSession(row));
+
     res.json({
       success: true,
-      items: sessions.map((row) => serializeSession(row)),
+      items,
     });
   } catch (err) {
     next(err);

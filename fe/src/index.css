@@ -91,8 +91,3 @@ body {
 .ant-pro-sider .ant-menu-submenu-title .anticon + .ant-menu-title-content {
   overflow: visible;
 }
-
-.support-menu-active.ant-menu-item,
-a.support-menu-active {
-  color: #1677ff;
-}

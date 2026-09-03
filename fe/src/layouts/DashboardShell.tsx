@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { useMemo } from "react";
 import {
   BookOutlined,
   CustomerServiceOutlined,
@@ -37,46 +37,7 @@ import { AdminUsersPage } from "../pages/admin/AdminUsersPage";
 import { AdminLicensePackagesPage } from "../pages/admin/AdminLicensePackagesPage";
 import { AdminLicenseRequestsPage } from "../pages/admin/AdminLicenseRequestsPage";
 import { AdminSupportPage } from "../pages/admin/AdminSupportPage";
-import { SupportChatWidget } from "../components/support/SupportChatWidget";
-import { SupportChatProvider, useSupportChatOptional } from "../contexts/SupportChatContext";
-
-function DashboardMenuItem({
-  item,
-  dom,
-  onNavigate,
-}: {
-  item: { path?: string };
-  dom: ReactNode;
-  onNavigate: (path: string) => void;
-}) {
-  const supportChat = useSupportChatOptional();
-
-  if (item.path === "/support" && supportChat) {
-    return (
-      <a
-        href="#"
-        className={supportChat.open ? "support-menu-active" : undefined}
-        onClick={(event) => {
-          event.preventDefault();
-          supportChat.openChat();
-        }}
-      >
-        {dom}
-      </a>
-    );
-  }
-
-  return (
-    <a
-      onClick={(event) => {
-        event.preventDefault();
-        if (item.path) onNavigate(item.path);
-      }}
-    >
-      {dom}
-    </a>
-  );
-}
+import { UserSupportPage } from "../pages/dashboard/UserSupportPage";
 
 export function DashboardShell() {
   const location = useLocation();
@@ -144,8 +105,7 @@ export function DashboardShell() {
   }, [t, user?.role]);
 
   return (
-    <SupportChatProvider>
-      <ProLayout
+    <ProLayout
       title={t("app.title")}
       location={{ pathname: location.pathname }}
       route={{ routes }}
@@ -221,11 +181,14 @@ export function DashboardShell() {
         </div>
       )}
       menuItemRender={(item, dom) => (
-        <DashboardMenuItem
-          item={item}
-          dom={dom}
-          onNavigate={(path) => navigate(path as MenuKey)}
-        />
+        <a
+          onClick={(event) => {
+            event.preventDefault();
+            if (item.path) navigate(item.path as MenuKey);
+          }}
+        >
+          {dom}
+        </a>
       )}
       layout="mix"
       splitMenus={false}
@@ -244,6 +207,14 @@ export function DashboardShell() {
               element={
                 <ProtectedRoute>
                   <MyLicensePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/support"
+              element={
+                <ProtectedRoute>
+                  <UserSupportPage />
                 </ProtectedRoute>
               }
             />
@@ -315,8 +286,6 @@ export function DashboardShell() {
           </Routes>
         </div>
       </div>
-      {user?.role !== "admin" && <SupportChatWidget />}
     </ProLayout>
-    </SupportChatProvider>
   );
 }

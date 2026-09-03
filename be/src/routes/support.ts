@@ -9,6 +9,11 @@ import {
   sendTelegramMessage,
 } from "../lib/telegram";
 import { serializeSession } from "../lib/supportSerialize";
+import {
+  findActiveSupportSession,
+  getOrCreateActiveSupportSession,
+  touchSupportSession,
+} from "../lib/supportSessionService";
 import { broadcastToAdmins, broadcastToSession } from "../lib/supportWs";
 import { sendSupportMessage } from "../lib/supportMessageService";
 import { requireAuth } from "../middleware/auth";
@@ -31,16 +36,7 @@ supportRouter.get("/sessions/active", async (req, res, next) => {
   try {
     const userId = req.auth!.userId;
 
-    const session = await prisma.supportSession.findFirst({
-      where: {
-        userId,
-        status: { in: ["open", "waiting_admin"] },
-      },
-      orderBy: { createdAt: "desc" },
-      include: {
-        messages: { orderBy: { createdAt: "asc" } },
-      },
-    });
+    const session = await findActiveSupportSession(userId);
 
     res.json({
       success: true,
@@ -55,16 +51,7 @@ supportRouter.post("/sessions", async (req, res, next) => {
   try {
     const userId = req.auth!.userId;
 
-    const existing = await prisma.supportSession.findFirst({
-      where: {
-        userId,
-        status: { in: ["open", "waiting_admin"] },
-      },
-      include: {
-        messages: { orderBy: { createdAt: "asc" } },
-      },
-    });
-
+    const existing = await findActiveSupportSession(userId);
     if (existing) {
       return res.json({
         success: true,
@@ -72,12 +59,7 @@ supportRouter.post("/sessions", async (req, res, next) => {
       });
     }
 
-    const session = await prisma.supportSession.create({
-      data: { userId },
-      include: {
-        messages: { orderBy: { createdAt: "asc" } },
-      },
-    });
+    const session = await getOrCreateActiveSupportSession(userId);
 
     res.status(201).json({
       success: true,
@@ -202,6 +184,8 @@ supportRouter.post("/sessions/:id/faq", async (req, res, next) => {
       },
     });
 
+    await touchSupportSession(session.id);
+
     const botMessage = await prisma.supportMessage.create({
       data: {
         sessionId: session.id,
@@ -209,6 +193,8 @@ supportRouter.post("/sessions/:id/faq", async (req, res, next) => {
         content: faq.answer,
       },
     });
+
+    await touchSupportSession(session.id);
 
     broadcastToSession(session.id, {
       type: "message:new",

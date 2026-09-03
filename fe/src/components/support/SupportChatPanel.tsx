@@ -2,15 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   App as AntApp,
   Button,
-  FloatButton,
   Input,
   Tag,
 } from "antd";
-import {
-  CloseOutlined,
-  CustomerServiceOutlined,
-  SendOutlined,
-} from "@ant-design/icons";
+import { CustomerServiceOutlined, SendOutlined } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
@@ -21,19 +16,22 @@ import {
 import { useSupportSocket } from "../../hooks/useSupportSocket";
 import { api } from "../../lib/api";
 import { sendSupportMessageRest } from "../../lib/supportApi";
-import { useSupportChat } from "../../contexts/SupportChatContext";
 import type { SupportFaqItem, SupportMessage, SupportSession, SupportWsEvent } from "../../types/support";
 
-export function SupportChatWidget() {
+type SupportChatPanelProps = {
+  className?: string;
+};
+
+export function SupportChatPanel({ className }: SupportChatPanelProps) {
   const { t } = useTranslation();
   const { message } = AntApp.useApp();
   const queryClient = useQueryClient();
-  const { open, closeChat, toggleChat } = useSupportChat();
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [session, setSession] = useState<SupportSession | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const joinedSessionRef = useRef<string | null>(null);
+  const creatingSessionRef = useRef<Promise<SupportSession> | null>(null);
 
   const appendMessages = useCallback((incoming: SupportMessage[]) => {
     setMessages((prev) => {
@@ -52,7 +50,6 @@ export function SupportChatWidget() {
       );
       return data.items;
     },
-    enabled: open,
   });
 
   const activeSessionQuery = useQuery({
@@ -63,7 +60,6 @@ export function SupportChatWidget() {
       );
       return data.session;
     },
-    enabled: open,
   });
 
   useEffect(() => {
@@ -89,12 +85,12 @@ export function SupportChatWidget() {
   );
 
   const { connected, connecting, joinSession, leaveSession, sendMessage } = useSupportSocket({
-    enabled: open,
+    enabled: true,
     onEvent: handleWsEvent,
   });
 
   useEffect(() => {
-    if (!open || !session?.id || !connected) return;
+    if (!session?.id || !connected) return;
     if (joinedSessionRef.current === session.id) return;
     joinSession(session.id);
     joinedSessionRef.current = session.id;
@@ -102,11 +98,11 @@ export function SupportChatWidget() {
       leaveSession(session.id);
       joinedSessionRef.current = null;
     };
-  }, [connected, joinSession, leaveSession, open, session?.id]);
+  }, [connected, joinSession, leaveSession, session?.id]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, open]);
+  }, [messages]);
 
   const createSessionMut = useMutation({
     mutationFn: async () => {
@@ -141,11 +137,41 @@ export function SupportChatWidget() {
     },
   });
 
-  const ensureSession = useCallback(async () => {
+  const ensureSession = useCallback(async (): Promise<SupportSession> => {
     if (session) return session;
-    if (activeSessionQuery.data) return activeSessionQuery.data;
-    return createSessionMut.mutateAsync();
-  }, [activeSessionQuery.data, createSessionMut, session]);
+
+    if (activeSessionQuery.isLoading || activeSessionQuery.isFetching) {
+      const result = await activeSessionQuery.refetch();
+      if (result.data) {
+        setSession(result.data);
+        setMessages(result.data.messages ?? []);
+        return result.data;
+      }
+    } else if (activeSessionQuery.data) {
+      setSession(activeSessionQuery.data);
+      setMessages(activeSessionQuery.data.messages ?? []);
+      return activeSessionQuery.data;
+    }
+
+    if (creatingSessionRef.current) {
+      return creatingSessionRef.current;
+    }
+
+    creatingSessionRef.current = createSessionMut
+      .mutateAsync()
+      .finally(() => {
+        creatingSessionRef.current = null;
+      });
+
+    return creatingSessionRef.current;
+  }, [
+    activeSessionQuery.data,
+    activeSessionQuery.isFetching,
+    activeSessionQuery.isLoading,
+    activeSessionQuery,
+    createSessionMut,
+    session,
+  ]);
 
   const dispatchMessage = async (sessionId: string, text: string) => {
     const viaWs = sendMessage(sessionId, text);
@@ -184,8 +210,10 @@ export function SupportChatWidget() {
     return <Tag color="blue">{t("support.autoReply")}</Tag>;
   }, [session, t]);
 
-  const panel = (
-    <div className="flex h-[min(80vh,560px)] w-[min(100vw-1rem,380px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+  return (
+    <div
+      className={`flex min-h-[min(72vh,640px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ${className ?? ""}`}
+    >
       <div className="flex items-center justify-between bg-[#2563EB] px-4 py-3 text-white">
         <div className="flex items-center gap-2">
           <CustomerServiceOutlined className="text-lg" />
@@ -194,15 +222,7 @@ export function SupportChatWidget() {
             <div className="text-xs text-blue-100">{t("support.subtitle")}</div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {statusTag}
-          <Button
-            type="text"
-            size="small"
-            icon={<CloseOutlined className="!text-white" />}
-            onClick={closeChat}
-          />
-        </div>
+        {statusTag}
       </div>
 
       <SupportConnectionBanner connected={connected} connecting={connecting} />
@@ -232,7 +252,7 @@ export function SupportChatWidget() {
         />
       </div>
 
-      <div className="border-t border-slate-200 bg-white p-3">
+      <div className="border-t border-slate-200 bg-white p-3 sm:p-4">
         <div className="flex items-end gap-2">
           <Input.TextArea
             value={draft}
@@ -252,7 +272,7 @@ export function SupportChatWidget() {
             shape="circle"
             size="large"
             icon={<SendOutlined />}
-            loading={createSessionMut.isPending}
+            loading={createSessionMut.isPending || activeSessionQuery.isLoading}
             className="!bg-[#2563EB]"
             onClick={() => void handleSend()}
           />
@@ -271,23 +291,5 @@ export function SupportChatWidget() {
         )}
       </div>
     </div>
-  );
-
-  return (
-    <>
-      {open && (
-        <div className="fixed right-4 bottom-20 z-[1000] sm:bottom-6">
-          {panel}
-        </div>
-      )}
-      <FloatButton
-        icon={<CustomerServiceOutlined />}
-        type="primary"
-        className="!bg-[#2563EB]"
-        tooltip={t("support.title")}
-        onClick={toggleChat}
-        badge={{ dot: session?.status === "waiting_admin" }}
-      />
-    </>
   );
 }
