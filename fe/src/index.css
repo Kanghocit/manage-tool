@@ -91,3 +91,19 @@ body {
 .ant-pro-sider .ant-menu-submenu-title .anticon + .ant-menu-title-content {
   overflow: visible;
 }
+
+.support-menu-item-with-badge {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.support-menu-item-with-badge .support-menu-badge {
+  flex-shrink: 0;
+}
+
+.support-menu-item-with-badge .support-menu-badge .ant-badge-count {
+  box-shadow: none;
+}

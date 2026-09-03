@@ -11,7 +11,7 @@ import {
   TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { Button, Space, Tooltip } from "antd";
+import { Button, Badge, Space, Tooltip } from "antd";
 import { ProLayout } from "@ant-design/pro-components";
 import {
   Route,
@@ -38,6 +38,7 @@ import { AdminLicensePackagesPage } from "../pages/admin/AdminLicensePackagesPag
 import { AdminLicenseRequestsPage } from "../pages/admin/AdminLicenseRequestsPage";
 import { AdminSupportPage } from "../pages/admin/AdminSupportPage";
 import { UserSupportPage } from "../pages/dashboard/UserSupportPage";
+import { useAdminSupportInboxBadge } from "../hooks/useAdminSupportInboxBadge";
 
 export function DashboardShell() {
   const location = useLocation();
@@ -45,6 +46,7 @@ export function DashboardShell() {
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
   const { t, i18n } = useTranslation();
+  const supportInboxBadge = useAdminSupportInboxBadge();
 
   const routes = useMemo(() => {
     const base: NavRoute[] = [
@@ -96,13 +98,14 @@ export function DashboardShell() {
           path: "/admin/support",
           icon: <CustomerServiceOutlined />,
           name: t("menu.support"),
+          badge: supportInboxBadge > 0 ? supportInboxBadge : undefined,
         },
         { path: "/admin/users", icon: <TeamOutlined />, name: t("menu.users") },
       );
     }
 
     return base;
-  }, [t, user?.role]);
+  }, [supportInboxBadge, t, user?.role]);
 
   return (
     <ProLayout
@@ -180,16 +183,30 @@ export function DashboardShell() {
           </Button>
         </div>
       )}
-      menuItemRender={(item, dom) => (
-        <a
-          onClick={(event) => {
-            event.preventDefault();
-            if (item.path) navigate(item.path as MenuKey);
-          }}
-        >
-          {dom}
-        </a>
-      )}
+      menuItemRender={(item, dom) => {
+        const showSupportBadge =
+          item.path === "/admin/support" && supportInboxBadge > 0;
+
+        return (
+          <a
+            onClick={(event) => {
+              event.preventDefault();
+              if (item.path) navigate(item.path as MenuKey);
+            }}
+            className={showSupportBadge ? "support-menu-item-with-badge" : undefined}
+          >
+            {dom}
+            {showSupportBadge ? (
+              <Badge
+                count={supportInboxBadge}
+                overflowCount={99}
+                size="small"
+                className="support-menu-badge"
+              />
+            ) : null}
+          </a>
+        );
+      }}
       layout="mix"
       splitMenus={false}
       fixSiderbar

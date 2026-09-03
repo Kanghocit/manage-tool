@@ -12,4 +12,9 @@ export type MenuKey =
   | "/admin/support"
   | "/profile";
 
-export type NavRoute = { path: MenuKey; name: string; icon: ReactNode };
+export type NavRoute = {
+  path: MenuKey;
+  name: string;
+  icon: ReactNode;
+  badge?: number;
+};
