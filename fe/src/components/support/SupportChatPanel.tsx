@@ -16,6 +16,7 @@ import {
 import { useSupportSocket } from "../../hooks/useSupportSocket";
 import { api } from "../../lib/api";
 import { sendSupportMessageRest } from "../../lib/supportApi";
+import { appendSupportMessages } from "../../lib/supportMessages";
 import type { SupportFaqItem, SupportMessage, SupportSession, SupportWsEvent } from "../../types/support";
 
 type SupportChatPanelProps = {
@@ -32,14 +33,12 @@ export function SupportChatPanel({ className }: SupportChatPanelProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const joinedSessionRef = useRef<string | null>(null);
   const creatingSessionRef = useRef<Promise<SupportSession> | null>(null);
+  const loadedSessionRef = useRef<string | null>(null);
+  const sendingRef = useRef(false);
+  const faqBusyRef = useRef(false);
 
   const appendMessages = useCallback((incoming: SupportMessage[]) => {
-    setMessages((prev) => {
-      const ids = new Set(prev.map((m) => m.id));
-      const added = incoming.filter((m) => !ids.has(m.id));
-      if (added.length === 0) return prev;
-      return [...prev, ...added];
-    });
+    setMessages((prev) => appendSupportMessages(prev, incoming));
   }, []);
 
   const faqQuery = useQuery({
@@ -63,9 +62,12 @@ export function SupportChatPanel({ className }: SupportChatPanelProps) {
   });
 
   useEffect(() => {
-    if (activeSessionQuery.data) {
-      setSession(activeSessionQuery.data);
-      setMessages(activeSessionQuery.data.messages ?? []);
+    const data = activeSessionQuery.data;
+    if (!data) return;
+    setSession(data);
+    if (loadedSessionRef.current !== data.id) {
+      loadedSessionRef.current = data.id;
+      setMessages(data.messages ?? []);
     }
   }, [activeSessionQuery.data]);
 
@@ -100,10 +102,6 @@ export function SupportChatPanel({ className }: SupportChatPanelProps) {
     };
   }, [connected, joinSession, leaveSession, session?.id]);
 
-  useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
-
   const createSessionMut = useMutation({
     mutationFn: async () => {
       const { data } = await api.post<{ success: boolean; session: SupportSession }>(
@@ -113,6 +111,7 @@ export function SupportChatPanel({ className }: SupportChatPanelProps) {
     },
     onSuccess: (newSession) => {
       setSession(newSession);
+      loadedSessionRef.current = newSession.id;
       setMessages(newSession.messages ?? []);
       void queryClient.invalidateQueries({ queryKey: ["support-active-session"] });
     },
@@ -183,22 +182,29 @@ export function SupportChatPanel({ className }: SupportChatPanelProps) {
 
   const handleSend = async () => {
     const text = draft.trim();
-    if (!text) return;
+    if (!text || sendingRef.current) return;
+    sendingRef.current = true;
     try {
       const current = await ensureSession();
       await dispatchMessage(current.id, text);
       setDraft("");
     } catch {
       message.error(t("support.sendFailed"));
+    } finally {
+      sendingRef.current = false;
     }
   };
 
   const handleFaqClick = async (faq: SupportFaqItem) => {
+    if (faqBusyRef.current || faqMut.isPending) return;
+    faqBusyRef.current = true;
     try {
       const current = await ensureSession();
       await faqMut.mutateAsync({ sessionId: current.id, faqId: faq.id });
     } catch {
       message.error(t("support.sendFailed"));
+    } finally {
+      faqBusyRef.current = false;
     }
   };
 
@@ -243,7 +249,7 @@ export function SupportChatPanel({ className }: SupportChatPanelProps) {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 bg-[#F9FAFB]">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#F9FAFB]">
         <SupportMessageList
           messages={messages}
           perspective="user"

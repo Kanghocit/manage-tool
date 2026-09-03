@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 
@@ -79,9 +80,18 @@ export function SupportMessageList({
   emptyText,
   listRef,
 }: ListProps) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const node = bottomRef.current;
+    if (!node) return;
+    node.scrollIntoView({ block: "end" });
+  }, [messages]);
+
   if (messages.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center px-4 text-center">
+      <div className="flex h-full min-h-0 flex-col items-center justify-center px-4 text-center">
         <div className="mb-2 text-3xl opacity-40">💬</div>
         <p className="text-sm text-slate-500">{emptyText}</p>
       </div>
@@ -89,10 +99,21 @@ export function SupportMessageList({
   }
 
   return (
-    <div ref={listRef} className="flex flex-col gap-3 overflow-y-auto p-4">
-      {messages.map((msg) => (
-        <SupportMessageBubble key={msg.id} message={msg} perspective={perspective} />
-      ))}
+    <div
+      ref={(node) => {
+        innerRef.current = node;
+        if (listRef) {
+          (listRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+        }
+      }}
+      className="h-full min-h-0 overflow-y-auto overscroll-contain p-4"
+    >
+      <div className="flex flex-col gap-3">
+        {messages.map((msg) => (
+          <SupportMessageBubble key={msg.id} message={msg} perspective={perspective} />
+        ))}
+        <div ref={bottomRef} className="h-px shrink-0" aria-hidden />
+      </div>
     </div>
   );
 }

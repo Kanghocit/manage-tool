@@ -23,6 +23,7 @@ import {
 import { useSupportSocket } from "../../hooks/useSupportSocket";
 import { api } from "../../lib/api";
 import { sendSupportMessageRest } from "../../lib/supportApi";
+import { appendSupportMessages } from "../../lib/supportMessages";
 import type { SupportMessage, SupportSession, SupportWsEvent } from "../../types/support";
 
 async function fetchSessions() {
@@ -99,6 +100,8 @@ export function AdminSupportPage() {
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
   const joinedSessionRef = useRef<string | null>(null);
+  const loadedSessionRef = useRef<string | null>(null);
+  const sendingRef = useRef(false);
 
   const selectedId = params.id ?? null;
 
@@ -115,20 +118,19 @@ export function AdminSupportPage() {
   });
 
   useEffect(() => {
-    if (sessionQuery.data) {
-      setMessages(sessionQuery.data.messages ?? []);
-    } else {
+    if (!selectedId) {
       setMessages([]);
+      loadedSessionRef.current = null;
+      return;
     }
-  }, [sessionQuery.data]);
+    if (sessionQuery.data?.id === selectedId && loadedSessionRef.current !== selectedId) {
+      setMessages(sessionQuery.data.messages ?? []);
+      loadedSessionRef.current = selectedId;
+    }
+  }, [selectedId, sessionQuery.data]);
 
   const appendMessages = useCallback((incoming: SupportMessage[]) => {
-    setMessages((prev) => {
-      const ids = new Set(prev.map((m) => m.id));
-      const added = incoming.filter((m) => !ids.has(m.id));
-      if (added.length === 0) return prev;
-      return [...prev, ...added];
-    });
+    setMessages((prev) => appendSupportMessages(prev, incoming));
   }, []);
 
   const handleWsEvent = useCallback(
@@ -168,10 +170,6 @@ export function AdminSupportPage() {
     };
   }, [connected, joinSession, leaveSession, selectedId]);
 
-  useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, selectedId]);
-
   const deleteMut = useMutation({
     mutationFn: (id: string) => api.delete(`/api/admin/support/sessions/${id}`),
     onSuccess: () => {
@@ -205,8 +203,9 @@ export function AdminSupportPage() {
 
   const handleSend = async () => {
     const text = draft.trim();
-    if (!text || !selectedId) return;
+    if (!text || !selectedId || sendingRef.current) return;
 
+    sendingRef.current = true;
     try {
       const viaWs = sendMessage(selectedId, text);
       if (!viaWs) {
@@ -216,6 +215,8 @@ export function AdminSupportPage() {
       setDraft("");
     } catch {
       message.warning(t("support.sendFailed"));
+    } finally {
+      sendingRef.current = false;
     }
   };
 
@@ -299,7 +300,7 @@ export function AdminSupportPage() {
 
               <SupportConnectionBanner connected={connected} connecting={connecting} />
 
-              <div className="min-h-0 flex-1 bg-[#F9FAFB]">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#F9FAFB]">
                 {sessionQuery.isLoading ? (
                   <div className="flex h-full items-center justify-center text-slate-400">
                     {t("common.loading")}

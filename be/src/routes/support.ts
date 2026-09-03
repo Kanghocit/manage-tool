@@ -176,6 +176,19 @@ supportRouter.post("/sessions/:id/faq", async (req, res, next) => {
       });
     }
 
+    const recentDuplicate = await prisma.supportMessage.findFirst({
+      where: {
+        sessionId: session.id,
+        sender: "user",
+        content: faq.question,
+        createdAt: { gte: new Date(Date.now() - 5_000) },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (recentDuplicate) {
+      return res.json({ success: true });
+    }
+
     const userMessage = await prisma.supportMessage.create({
       data: {
         sessionId: session.id,
