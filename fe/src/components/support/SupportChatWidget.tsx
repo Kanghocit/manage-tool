@@ -1,43 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  App as AntApp,
   Button,
-  Card,
   FloatButton,
   Input,
-  Space,
   Tag,
-  Typography,
 } from "antd";
-import { CustomerServiceOutlined, SendOutlined } from "@ant-design/icons";
+import {
+  CloseOutlined,
+  CustomerServiceOutlined,
+  SendOutlined,
+} from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
+import {
+  SupportConnectionBanner,
+  SupportMessageList,
+} from "./SupportChatUi";
 import { useSupportSocket } from "../../hooks/useSupportSocket";
 import { api } from "../../lib/api";
+import { sendSupportMessageRest } from "../../lib/supportApi";
 import type { SupportFaqItem, SupportMessage, SupportSession, SupportWsEvent } from "../../types/support";
-
-function MessageBubble({ message }: { message: SupportMessage }) {
-  const isUser = message.sender === "user";
-  const isBot = message.sender === "bot";
-
-  const align = isUser ? "justify-end" : "justify-start";
-  const bg = isUser
-    ? "bg-blue-600 text-white"
-    : isBot
-      ? "bg-slate-100 text-slate-800"
-      : "bg-emerald-600 text-white";
-
-  return (
-    <div className={`flex ${align}`}>
-      <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${bg}`}>
-        {message.content}
-      </div>
-    </div>
-  );
-}
 
 export function SupportChatWidget() {
   const { t } = useTranslation();
+  const { message } = AntApp.useApp();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -45,6 +33,15 @@ export function SupportChatWidget() {
   const [session, setSession] = useState<SupportSession | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const joinedSessionRef = useRef<string | null>(null);
+
+  const appendMessages = useCallback((incoming: SupportMessage[]) => {
+    setMessages((prev) => {
+      const ids = new Set(prev.map((m) => m.id));
+      const added = incoming.filter((m) => !ids.has(m.id));
+      if (added.length === 0) return prev;
+      return [...prev, ...added];
+    });
+  }, []);
 
   const faqQuery = useQuery({
     queryKey: ["support-faq"],
@@ -78,10 +75,7 @@ export function SupportChatWidget() {
   const handleWsEvent = useCallback(
     (event: SupportWsEvent) => {
       if (event.type === "message:new") {
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === event.message.id)) return prev;
-          return [...prev, event.message];
-        });
+        appendMessages([event.message]);
       }
       if (event.type === "session:deleted" && session?.id === event.sessionId) {
         setSession(null);
@@ -90,10 +84,10 @@ export function SupportChatWidget() {
         void queryClient.invalidateQueries({ queryKey: ["support-active-session"] });
       }
     },
-    [queryClient, session?.id],
+    [appendMessages, queryClient, session?.id],
   );
 
-  const { connected, joinSession, leaveSession, sendMessage } = useSupportSocket({
+  const { connected, connecting, joinSession, leaveSession, sendMessage } = useSupportSocket({
     enabled: open,
     onEvent: handleWsEvent,
   });
@@ -136,6 +130,7 @@ export function SupportChatWidget() {
     },
     onSuccess: (updated) => {
       setSession(updated);
+      message.success(t("support.escalated"));
     },
   });
 
@@ -151,18 +146,23 @@ export function SupportChatWidget() {
     return createSessionMut.mutateAsync();
   }, [activeSessionQuery.data, createSessionMut, session]);
 
+  const dispatchMessage = async (sessionId: string, text: string) => {
+    const viaWs = sendMessage(sessionId, text);
+    if (viaWs) return;
+
+    const created = await sendSupportMessageRest(sessionId, text, "user");
+    appendMessages(created);
+  };
+
   const handleSend = async () => {
     const text = draft.trim();
     if (!text) return;
     try {
       const current = await ensureSession();
-      const ok = sendMessage(current.id, text);
-      if (!ok) {
-        throw new Error("WebSocket not connected");
-      }
+      await dispatchMessage(current.id, text);
       setDraft("");
-    } catch (err) {
-      console.error(err);
+    } catch {
+      message.error(t("support.sendFailed"));
     }
   };
 
@@ -170,8 +170,8 @@ export function SupportChatWidget() {
     try {
       const current = await ensureSession();
       await faqMut.mutateAsync({ sessionId: current.id, faqId: faq.id });
-    } catch (err) {
-      console.error(err);
+    } catch {
+      message.error(t("support.sendFailed"));
     }
   };
 
@@ -184,96 +184,105 @@ export function SupportChatWidget() {
   }, [session, t]);
 
   const panel = (
-    <Card
-      className="w-[min(100vw-1.5rem,22rem)] shadow-xl"
-      title={
-        <Space>
-          <CustomerServiceOutlined />
-          <span>{t("support.title")}</span>
+    <div className="flex h-[min(80vh,560px)] w-[min(100vw-1rem,380px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+      <div className="flex items-center justify-between bg-[#2563EB] px-4 py-3 text-white">
+        <div className="flex items-center gap-2">
+          <CustomerServiceOutlined className="text-lg" />
+          <div>
+            <div className="font-semibold leading-tight">{t("support.title")}</div>
+            <div className="text-xs text-blue-100">{t("support.subtitle")}</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
           {statusTag}
-        </Space>
-      }
-      extra={
-        <Button type="text" size="small" onClick={() => setOpen(false)}>
-          ✕
-        </Button>
-      }
-      styles={{ body: { padding: 12 } }}
-    >
-      <div ref={listRef} className="mb-3 flex max-h-64 min-h-40 flex-col gap-2 overflow-y-auto">
-        {messages.length === 0 ? (
-          <Typography.Text type="secondary">{t("support.emptyHint")}</Typography.Text>
-        ) : (
-          messages.map((msg) => <MessageBubble key={msg.id} message={msg} />)
-        )}
+          <Button
+            type="text"
+            size="small"
+            icon={<CloseOutlined className="!text-white" />}
+            onClick={() => setOpen(false)}
+          />
+        </div>
       </div>
 
+      <SupportConnectionBanner connected={connected} connecting={connecting} />
+
       {(faqQuery.data?.length ?? 0) > 0 && (
-        <div className="mb-3 flex flex-wrap gap-1">
+        <div className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-slate-100 bg-slate-50 px-3 py-2">
           {faqQuery.data?.map((faq) => (
-            <Button
+            <button
               key={faq.id}
-              size="small"
+              type="button"
               disabled={faqMut.isPending}
+              className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 hover:border-blue-300 hover:text-blue-600 disabled:opacity-50"
               onClick={() => void handleFaqClick(faq)}
             >
               {faq.question}
-            </Button>
+            </button>
           ))}
         </div>
       )}
 
-      <Space.Compact className="w-full">
-        <Input.TextArea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={t("support.inputPlaceholder")}
-          autoSize={{ minRows: 1, maxRows: 3 }}
-          onPressEnter={(e) => {
-            if (!e.shiftKey) {
-              e.preventDefault();
-              void handleSend();
-            }
-          }}
+      <div className="min-h-0 flex-1 bg-[#F9FAFB]">
+        <SupportMessageList
+          messages={messages}
+          perspective="user"
+          emptyText={t("support.emptyHint")}
+          listRef={listRef}
         />
-        <Button
-          type="primary"
-          icon={<SendOutlined />}
-          loading={createSessionMut.isPending}
-          onClick={() => void handleSend()}
-        />
-      </Space.Compact>
+      </div>
 
-      {session?.status !== "waiting_admin" && (
-        <Button
-          block
-          className="mt-2"
-          loading={escalateMut.isPending}
-          onClick={() => session && escalateMut.mutate(session.id)}
-          disabled={!session}
-        >
-          {t("support.contactAdmin")}
-        </Button>
-      )}
-
-      {!connected && (
-        <Typography.Text type="secondary" className="mt-2 block text-xs">
-          {t("support.reconnecting")}
-        </Typography.Text>
-      )}
-    </Card>
+      <div className="border-t border-slate-200 bg-white p-3">
+        <div className="flex items-end gap-2">
+          <Input.TextArea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={t("support.inputPlaceholder")}
+            autoSize={{ minRows: 1, maxRows: 4 }}
+            className="!rounded-xl"
+            onPressEnter={(e) => {
+              if (!e.shiftKey) {
+                e.preventDefault();
+                void handleSend();
+              }
+            }}
+          />
+          <Button
+            type="primary"
+            shape="circle"
+            size="large"
+            icon={<SendOutlined />}
+            loading={createSessionMut.isPending}
+            className="!bg-[#2563EB]"
+            onClick={() => void handleSend()}
+          />
+        </div>
+        {session?.status !== "waiting_admin" && (
+          <Button
+            block
+            type="link"
+            className="mt-1 !text-[#2563EB]"
+            loading={escalateMut.isPending}
+            onClick={() => session && escalateMut.mutate(session.id)}
+            disabled={!session}
+          >
+            {t("support.contactAdmin")}
+          </Button>
+        )}
+      </div>
+    </div>
   );
 
   return (
     <>
       {open && (
-        <div className="fixed right-4 bottom-20 z-[1000] sm:bottom-24">
+        <div className="fixed right-4 bottom-20 z-[1000] sm:bottom-6">
           {panel}
         </div>
       )}
       <FloatButton
         icon={<CustomerServiceOutlined />}
         type="primary"
+        className="!bg-[#2563EB]"
         tooltip={t("support.title")}
         onClick={() => setOpen((v) => !v)}
         badge={{ dot: session?.status === "waiting_admin" }}

@@ -4,7 +4,8 @@ import { z } from "zod";
 import { env } from "../config/env";
 import { prisma } from "../lib/prisma";
 import { serializeSession } from "../lib/supportSerialize";
-import { notifySessionDeleted } from "../lib/supportWs";
+import { notifySessionDeleted, broadcastToSession } from "../lib/supportWs";
+import { sendSupportMessage } from "../lib/supportMessageService";
 import { requireAuth, requireRole } from "../middleware/auth";
 
 export const adminSupportRouter = express.Router();
@@ -101,6 +102,44 @@ adminSupportRouter.delete("/sessions/:id", async (req, res, next) => {
     await prisma.supportSession.delete({ where: { id: sessionId } });
 
     res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const messageBodySchema = z.object({
+  content: z.string().min(1).max(2000),
+});
+
+adminSupportRouter.post("/sessions/:id/messages", async (req, res, next) => {
+  try {
+    const parsed = z.object({ id: z.string().uuid() }).safeParse(req.params);
+    const bodyParsed = messageBodySchema.safeParse(req.body);
+    if (!parsed.success || !bodyParsed.success) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_PAYLOAD",
+        message: "Invalid payload.",
+      });
+    }
+
+    const auth = { userId: req.auth!.userId, role: "admin" as const };
+    const result = await sendSupportMessage(auth, parsed.data.id, bodyParsed.data.content);
+    if (!result.ok) {
+      const status =
+        result.code === "FORBIDDEN" ? 403 : result.code === "NOT_FOUND" ? 404 : 400;
+      return res.status(status).json({ success: false, code: result.code, message: result.message });
+    }
+
+    for (const message of result.messages) {
+      broadcastToSession(parsed.data.id, {
+        type: "message:new",
+        sessionId: parsed.data.id,
+        message,
+      });
+    }
+
+    res.status(201).json({ success: true, messages: result.messages });
   } catch (err) {
     next(err);
   }

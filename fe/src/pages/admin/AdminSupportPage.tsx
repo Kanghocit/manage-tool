@@ -3,45 +3,27 @@ import {
   App as AntApp,
   Badge,
   Button,
-  Card,
   Empty,
   Input,
-  List,
   Popconfirm,
-  Space,
   Tag,
-  Typography,
 } from "antd";
 import { PageContainer } from "@ant-design/pro-components";
-import { DeleteOutlined, SendOutlined } from "@ant-design/icons";
+import { DeleteOutlined, SendOutlined, UserOutlined } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import dayjs from "dayjs";
 
+import {
+  SupportConnectionBanner,
+  SupportMessageList,
+} from "../../components/support/SupportChatUi";
 import { useSupportSocket } from "../../hooks/useSupportSocket";
 import { api } from "../../lib/api";
+import { sendSupportMessageRest } from "../../lib/supportApi";
 import type { SupportMessage, SupportSession, SupportWsEvent } from "../../types/support";
-
-function MessageBubble({ message }: { message: SupportMessage }) {
-  const isAdmin = message.sender === "admin";
-  const isUser = message.sender === "user";
-  const align = isAdmin ? "justify-end" : "justify-start";
-  const bg = isAdmin
-    ? "bg-emerald-600 text-white"
-    : isUser
-      ? "bg-blue-50 text-slate-900"
-      : "bg-slate-100 text-slate-800";
-
-  return (
-    <div className={`flex ${align}`}>
-      <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${bg}`}>
-        {message.content}
-      </div>
-    </div>
-  );
-}
 
 async function fetchSessions() {
   const { data } = await api.get<{ success: boolean; items: SupportSession[] }>(
@@ -57,6 +39,55 @@ async function fetchSession(id: string) {
   return data.session;
 }
 
+function SessionListItem({
+  item,
+  selected,
+  onClick,
+}: {
+  item: SupportSession;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const { t } = useTranslation();
+  const lastMsg = item.messages?.[item.messages.length - 1];
+  const preview = lastMsg?.content ?? t("support.emptyHint");
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full gap-3 rounded-xl border px-3 py-3 text-left transition-colors ${
+        selected
+          ? "border-blue-200 bg-blue-50"
+          : "border-transparent bg-white hover:bg-slate-50"
+      }`}
+    >
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2563EB] text-sm font-semibold text-white">
+        {(item.user?.fullName ?? "?").charAt(0).toUpperCase()}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate font-medium text-slate-900">
+            {item.user?.fullName ?? item.userId}
+          </span>
+          <span className="shrink-0 text-[10px] text-slate-400">
+            {dayjs(item.updatedAt).format("HH:mm")}
+          </span>
+        </div>
+        <div className="truncate text-xs text-slate-500">{item.user?.email}</div>
+        <div className="mt-1 flex items-center gap-2">
+          <span className="truncate text-xs text-slate-600">{preview}</span>
+          {item.status === "waiting_admin" ? (
+            <Tag color="orange" className="!m-0 !text-[10px]">
+              {t("support.waitingAdmin")}
+            </Tag>
+          ) : null}
+        </div>
+      </div>
+    </button>
+  );
+}
+
 export function AdminSupportPage() {
   const { t } = useTranslation();
   const { message } = AntApp.useApp();
@@ -64,6 +95,7 @@ export function AdminSupportPage() {
   const params = useParams<{ id?: string }>();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
+  const [search, setSearch] = useState("");
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
   const joinedSessionRef = useRef<string | null>(null);
@@ -90,6 +122,15 @@ export function AdminSupportPage() {
     }
   }, [sessionQuery.data]);
 
+  const appendMessages = useCallback((incoming: SupportMessage[]) => {
+    setMessages((prev) => {
+      const ids = new Set(prev.map((m) => m.id));
+      const added = incoming.filter((m) => !ids.has(m.id));
+      if (added.length === 0) return prev;
+      return [...prev, ...added];
+    });
+  }, []);
+
   const handleWsEvent = useCallback(
     (event: SupportWsEvent) => {
       if (event.type === "session:escalated") {
@@ -102,16 +143,13 @@ export function AdminSupportPage() {
         }
       }
       if (event.type === "message:new" && event.sessionId === selectedId) {
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === event.message.id)) return prev;
-          return [...prev, event.message];
-        });
+        appendMessages([event.message]);
       }
     },
-    [navigate, queryClient, selectedId],
+    [appendMessages, navigate, queryClient, selectedId],
   );
 
-  const { connected, joinSession, leaveSession, sendMessage } = useSupportSocket({
+  const { connected, connecting, joinSession, leaveSession, sendMessage } = useSupportSocket({
     enabled: true,
     onEvent: handleWsEvent,
   });
@@ -151,122 +189,157 @@ export function AdminSupportPage() {
     [sessionsQuery.data],
   );
 
-  const handleSend = () => {
+  const filteredSessions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const items = sessionsQuery.data ?? [];
+    if (!q) return items;
+    return items.filter(
+      (s) =>
+        s.user?.fullName.toLowerCase().includes(q) ||
+        s.user?.email.toLowerCase().includes(q),
+    );
+  }, [search, sessionsQuery.data]);
+
+  const handleSend = async () => {
     const text = draft.trim();
     if (!text || !selectedId) return;
-    const ok = sendMessage(selectedId, text);
-    if (!ok) {
-      message.warning(t("support.reconnecting"));
-      return;
+
+    try {
+      const viaWs = sendMessage(selectedId, text);
+      if (!viaWs) {
+        const created = await sendSupportMessageRest(selectedId, text, "admin");
+        appendMessages(created);
+      }
+      setDraft("");
+    } catch {
+      message.warning(t("support.sendFailed"));
     }
-    setDraft("");
   };
 
   const selectedSession = sessionQuery.data;
 
   return (
     <PageContainer title={t("adminSupport.title")} subTitle={t("adminSupport.subtitle")}>
-      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-        <Card
-          title={
-            <Space>
-              {t("adminSupport.sessions")}
+      <div className="grid h-[calc(100vh-12rem)] min-h-[520px] gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[340px_1fr]">
+        {/* Session list */}
+        <div className="flex flex-col border-r border-slate-200 bg-slate-50">
+          <div className="border-b border-slate-200 px-4 py-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="font-semibold text-slate-900">{t("adminSupport.sessions")}</span>
               <Badge count={waitingCount} />
-            </Space>
-          }
-          loading={sessionsQuery.isLoading}
-        >
-          <List
-            dataSource={sessionsQuery.data ?? []}
-            locale={{ emptyText: t("adminSupport.noSessions") }}
-            renderItem={(item) => (
-              <List.Item
-                className={`cursor-pointer rounded-lg px-2 ${selectedId === item.id ? "bg-blue-50" : ""}`}
-                onClick={() => navigate(`/admin/support/${item.id}`)}
-              >
-                <List.Item.Meta
-                  title={
-                    <Space wrap>
-                      <span>{item.user?.fullName ?? item.userId}</span>
-                      <Tag color={item.status === "waiting_admin" ? "orange" : "blue"}>
-                        {item.status === "waiting_admin"
-                          ? t("support.waitingAdmin")
-                          : t("support.autoReply")}
-                      </Tag>
-                    </Space>
-                  }
-                  description={
-                    <Typography.Text type="secondary" className="text-xs">
-                      {item.user?.email} · {dayjs(item.updatedAt).format("DD/MM HH:mm")}
-                    </Typography.Text>
-                  }
+            </div>
+            <Input
+              allowClear
+              placeholder={t("adminSupport.searchPlaceholder")}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="!rounded-lg"
+            />
+          </div>
+          <div className="flex-1 space-y-1 overflow-y-auto p-2">
+            {sessionsQuery.isLoading ? (
+              <div className="p-4 text-center text-sm text-slate-400">{t("common.loading")}</div>
+            ) : filteredSessions.length === 0 ? (
+              <Empty description={t("adminSupport.noSessions")} className="mt-8" />
+            ) : (
+              filteredSessions.map((item) => (
+                <SessionListItem
+                  key={item.id}
+                  item={item}
+                  selected={selectedId === item.id}
+                  onClick={() => navigate(`/admin/support/${item.id}`)}
                 />
-              </List.Item>
+              ))
             )}
-          />
-        </Card>
+          </div>
+        </div>
 
-        <Card
-          title={
-            selectedSession
-              ? `${selectedSession.user?.fullName ?? ""} (${selectedSession.user?.email ?? ""})`
-              : t("adminSupport.selectSession")
-          }
-          extra={
-            selectedSession ? (
-              <Popconfirm
-                title={t("adminSupport.deleteConfirm")}
-                onConfirm={() => deleteMut.mutate(selectedSession.id)}
-              >
-                <Button danger icon={<DeleteOutlined />} loading={deleteMut.isPending}>
-                  {t("adminSupport.deleteSession")}
-                </Button>
-              </Popconfirm>
-            ) : null
-          }
-          loading={Boolean(selectedId) && sessionQuery.isLoading}
-        >
+        {/* Chat panel */}
+        <div className="flex min-w-0 flex-col">
           {!selectedId ? (
-            <Empty description={t("adminSupport.selectSession")} />
+            <div className="flex flex-1 flex-col items-center justify-center text-slate-400">
+              <UserOutlined className="mb-3 text-4xl" />
+              <p>{t("adminSupport.selectSession")}</p>
+            </div>
           ) : (
             <>
-              <div
-                ref={listRef}
-                className="mb-4 flex max-h-[420px] min-h-[280px] flex-col gap-2 overflow-y-auto rounded-lg border border-slate-100 bg-slate-50 p-3"
-              >
-                {messages.length === 0 ? (
-                  <Typography.Text type="secondary">{t("support.emptyHint")}</Typography.Text>
+              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+                <div>
+                  <div className="font-semibold text-slate-900">
+                    {selectedSession?.user?.fullName ?? "…"}
+                  </div>
+                  <div className="text-xs text-slate-500">{selectedSession?.user?.email}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {connected ? (
+                    <Tag color="green">{t("support.connected")}</Tag>
+                  ) : (
+                    <Tag color="orange">{t("support.reconnecting")}</Tag>
+                  )}
+                  {selectedSession ? (
+                    <Popconfirm
+                      title={t("adminSupport.deleteConfirm")}
+                      onConfirm={() => deleteMut.mutate(selectedSession.id)}
+                    >
+                      <Button
+                        danger
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        loading={deleteMut.isPending}
+                      >
+                        {t("adminSupport.deleteSession")}
+                      </Button>
+                    </Popconfirm>
+                  ) : null}
+                </div>
+              </div>
+
+              <SupportConnectionBanner connected={connected} connecting={connecting} />
+
+              <div className="min-h-0 flex-1 bg-[#F9FAFB]">
+                {sessionQuery.isLoading ? (
+                  <div className="flex h-full items-center justify-center text-slate-400">
+                    {t("common.loading")}
+                  </div>
                 ) : (
-                  messages.map((msg) => <MessageBubble key={msg.id} message={msg} />)
+                  <SupportMessageList
+                    messages={messages}
+                    perspective="admin"
+                    emptyText={t("support.emptyHint")}
+                    listRef={listRef}
+                  />
                 )}
               </div>
 
-              <Space.Compact className="w-full">
-                <Input.TextArea
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  placeholder={t("support.inputPlaceholder")}
-                  autoSize={{ minRows: 2, maxRows: 4 }}
-                  onPressEnter={(e) => {
-                    if (!e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                />
-                <Button type="primary" icon={<SendOutlined />} onClick={handleSend}>
-                  {t("support.send")}
-                </Button>
-              </Space.Compact>
-
-              {!connected && (
-                <Typography.Text type="secondary" className="mt-2 block text-xs">
-                  {t("support.reconnecting")}
-                </Typography.Text>
-              )}
+              <div className="border-t border-slate-200 bg-white p-4">
+                <div className="flex items-end gap-2">
+                  <Input.TextArea
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    placeholder={t("support.inputPlaceholder")}
+                    autoSize={{ minRows: 1, maxRows: 4 }}
+                    className="!rounded-xl"
+                    onPressEnter={(e) => {
+                      if (!e.shiftKey) {
+                        e.preventDefault();
+                        void handleSend();
+                      }
+                    }}
+                  />
+                  <Button
+                    type="primary"
+                    icon={<SendOutlined />}
+                    size="large"
+                    className="!bg-[#2563EB]"
+                    onClick={() => void handleSend()}
+                  >
+                    {t("support.send")}
+                  </Button>
+                </div>
+              </div>
             </>
           )}
-        </Card>
+        </div>
       </div>
     </PageContainer>
   );

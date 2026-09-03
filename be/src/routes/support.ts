@@ -10,6 +10,7 @@ import {
 } from "../lib/telegram";
 import { serializeSession } from "../lib/supportSerialize";
 import { broadcastToAdmins, broadcastToSession } from "../lib/supportWs";
+import { sendSupportMessage } from "../lib/supportMessageService";
 import { requireAuth } from "../middleware/auth";
 
 export const supportRouter = express.Router();
@@ -234,6 +235,44 @@ supportRouter.post("/sessions/:id/faq", async (req, res, next) => {
     });
 
     res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const messageBodySchema = z.object({
+  content: z.string().min(1).max(2000),
+});
+
+supportRouter.post("/sessions/:id/messages", async (req, res, next) => {
+  try {
+    const parsed = escalateParamsSchema.safeParse(req.params);
+    const bodyParsed = messageBodySchema.safeParse(req.body);
+    if (!parsed.success || !bodyParsed.success) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_PAYLOAD",
+        message: "Invalid payload.",
+      });
+    }
+
+    const auth = { userId: req.auth!.userId, role: req.auth!.role as "admin" | "user" };
+    const result = await sendSupportMessage(auth, parsed.data.id, bodyParsed.data.content);
+    if (!result.ok) {
+      const status =
+        result.code === "FORBIDDEN" ? 403 : result.code === "NOT_FOUND" ? 404 : 400;
+      return res.status(status).json({ success: false, code: result.code, message: result.message });
+    }
+
+    for (const message of result.messages) {
+      broadcastToSession(parsed.data.id, {
+        type: "message:new",
+        sessionId: parsed.data.id,
+        message,
+      });
+    }
+
+    res.status(201).json({ success: true, messages: result.messages });
   } catch (err) {
     next(err);
   }

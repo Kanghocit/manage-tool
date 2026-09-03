@@ -1,16 +1,11 @@
 import type { Server } from "http";
 import { WebSocket, WebSocketServer } from "ws";
-import type { SupportMessageSender } from "@prisma/client";
 
-import { matchSupportFaq } from "../config/supportFaq";
-import { env } from "../config/env";
-import { prisma } from "./prisma";
 import { verifyAccessToken } from "./jwt";
-import { serializeMessage } from "./supportSerialize";
 import {
-  formatSupportTelegramMessage,
-  sendTelegramMessage,
-} from "./telegram";
+  canAccessSupportSession,
+  sendSupportMessage,
+} from "./supportMessageService";
 
 type ClientAuth = {
   userId: string;
@@ -25,10 +20,6 @@ type SupportClient = WebSocket & {
 
 const adminSockets = new Set<SupportClient>();
 const sessionSockets = new Map<string, Set<SupportClient>>();
-const messageRateLimit = new Map<string, { count: number; resetAt: number }>();
-
-const MAX_MESSAGE_LENGTH = 2000;
-const MAX_MESSAGES_PER_MINUTE = 10;
 
 function sendJson(ws: WebSocket, payload: unknown) {
   if (ws.readyState === WebSocket.OPEN) {
@@ -84,114 +75,18 @@ export function notifySessionDeleted(sessionId: string) {
   sessionSockets.delete(sessionId);
 }
 
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const entry = messageRateLimit.get(userId);
-  if (!entry || now >= entry.resetAt) {
-    messageRateLimit.set(userId, { count: 1, resetAt: now + 60_000 });
-    return true;
-  }
-  if (entry.count >= MAX_MESSAGES_PER_MINUTE) return false;
-  entry.count += 1;
-  return true;
-}
-
-async function canAccessSession(auth: ClientAuth, sessionId: string): Promise<boolean> {
-  const session = await prisma.supportSession.findUnique({
-    where: { id: sessionId },
-    select: { userId: true },
-  });
-  if (!session) return false;
-  if (auth.role === "admin") return true;
-  return session.userId === auth.userId;
-}
-
 async function handleMessageSend(client: SupportClient, sessionId: string, content: string) {
   const auth = client.auth;
   if (!auth) return;
 
-  const trimmed = content.trim();
-  if (!trimmed || trimmed.length > MAX_MESSAGE_LENGTH) {
-    sendJson(client, {
-      type: "error",
-      code: "INVALID_MESSAGE",
-      message: "Message is empty or too long.",
-    });
+  const result = await sendSupportMessage(auth, sessionId, content);
+  if (!result.ok) {
+    sendJson(client, { type: "error", code: result.code, message: result.message });
     return;
   }
 
-  if (!checkRateLimit(auth.userId)) {
-    sendJson(client, {
-      type: "error",
-      code: "RATE_LIMIT",
-      message: "Too many messages. Please wait a moment.",
-    });
-    return;
-  }
-
-  const allowed = await canAccessSession(auth, sessionId);
-  if (!allowed) {
-    sendJson(client, { type: "error", code: "FORBIDDEN", message: "Forbidden." });
-    return;
-  }
-
-  const session = await prisma.supportSession.findUnique({
-    where: { id: sessionId },
-    select: {
-      id: true,
-      status: true,
-      userId: true,
-      createdAt: true,
-      user: { select: { email: true, fullName: true } },
-    },
-  });
-  if (!session) {
-    sendJson(client, { type: "error", code: "NOT_FOUND", message: "Session not found." });
-    return;
-  }
-
-  const sender: SupportMessageSender =
-    auth.role === "admin" ? "admin" : "user";
-
-  if (sender === "user" && session.userId !== auth.userId) {
-    sendJson(client, { type: "error", code: "FORBIDDEN", message: "Forbidden." });
-    return;
-  }
-
-  const userMessage = await prisma.supportMessage.create({
-    data: { sessionId, sender, content: trimmed },
-  });
-
-  broadcastToSession(sessionId, {
-    type: "message:new",
-    sessionId,
-    message: serializeMessage(userMessage),
-  });
-
-  if (sender === "user" && session.status === "open") {
-    const faq = matchSupportFaq(trimmed);
-    if (faq) {
-      const botMessage = await prisma.supportMessage.create({
-        data: { sessionId, sender: "bot", content: faq.answer },
-      });
-      broadcastToSession(sessionId, {
-        type: "message:new",
-        sessionId,
-        message: serializeMessage(botMessage),
-      });
-    }
-  }
-
-  if (sender === "user" && session.status === "waiting_admin" && session.user) {
-    void sendTelegramMessage(
-      formatSupportTelegramMessage({
-        sessionId: session.id,
-        userEmail: session.user.email,
-        userFullName: session.user.fullName,
-        createdAt: session.createdAt,
-        adminUrl: `${env.appPublicUrl.replace(/\/$/, "")}/admin/support/${session.id}`,
-      }),
-    );
+  for (const message of result.messages) {
+    broadcastToSession(sessionId, { type: "message:new", sessionId, message });
   }
 }
 
@@ -213,7 +108,7 @@ async function handleClientMessage(client: SupportClient, raw: string) {
       sendJson(client, { type: "error", code: "INVALID_PAYLOAD", message: "Missing sessionId." });
       return;
     }
-    const allowed = await canAccessSession(auth, sessionId);
+    const allowed = await canAccessSupportSession(auth, sessionId);
     if (!allowed) {
       sendJson(client, { type: "error", code: "FORBIDDEN", message: "Forbidden." });
       return;
