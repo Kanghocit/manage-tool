@@ -87,6 +87,19 @@ export async function sendSupportMessage(
     return { ok: false, code: "FORBIDDEN", message: "Forbidden." };
   }
 
+  const recentDuplicate = await prisma.supportMessage.findFirst({
+    where: {
+      sessionId,
+      sender,
+      content: trimmed,
+      createdAt: { gte: new Date(Date.now() - 3_000) },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (recentDuplicate) {
+    return { ok: true, messages: [serializeMessage(recentDuplicate)] };
+  }
+
   const userMessage = await prisma.supportMessage.create({
     data: { sessionId, sender, content: trimmed },
   });

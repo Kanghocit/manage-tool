@@ -80,13 +80,16 @@ export function SupportMessageList({
   emptyText,
   listRef,
 }: ListProps) {
-  const bottomRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
-    const node = bottomRef.current;
-    if (!node) return;
-    node.scrollIntoView({ block: "end" });
+    const scrollEl = innerRef.current;
+    const scrollToBottom = () => {
+      if (!scrollEl) return;
+      scrollEl.scrollTop = scrollEl.scrollHeight;
+    };
+    scrollToBottom();
+    requestAnimationFrame(scrollToBottom);
   }, [messages]);
 
   if (messages.length === 0) {
@@ -112,7 +115,6 @@ export function SupportMessageList({
         {messages.map((msg) => (
           <SupportMessageBubble key={msg.id} message={msg} perspective={perspective} />
         ))}
-        <div ref={bottomRef} className="h-px shrink-0" aria-hidden />
       </div>
     </div>
   );

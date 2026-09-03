@@ -17,6 +17,7 @@ import { useSupportSocket } from "../../hooks/useSupportSocket";
 import { api } from "../../lib/api";
 import { sendSupportMessageRest } from "../../lib/supportApi";
 import { appendSupportMessages } from "../../lib/supportMessages";
+import { acquireSendLock, releaseSendLock, shouldSendOnEnterKey } from "../../lib/supportSendGuard";
 import type { SupportFaqItem, SupportMessage, SupportSession, SupportWsEvent } from "../../types/support";
 
 type SupportChatPanelProps = {
@@ -36,6 +37,7 @@ export function SupportChatPanel({ className }: SupportChatPanelProps) {
   const loadedSessionRef = useRef<string | null>(null);
   const sendingRef = useRef(false);
   const faqBusyRef = useRef(false);
+  const lastSentRef = useRef<{ text: string; at: number } | null>(null);
 
   const appendMessages = useCallback((incoming: SupportMessage[]) => {
     setMessages((prev) => appendSupportMessages(prev, incoming));
@@ -182,16 +184,18 @@ export function SupportChatPanel({ className }: SupportChatPanelProps) {
 
   const handleSend = async () => {
     const text = draft.trim();
-    if (!text || sendingRef.current) return;
-    sendingRef.current = true;
+    if (!text) return;
+    if (!acquireSendLock(sendingRef, lastSentRef, text)) return;
+
+    setDraft("");
+
     try {
       const current = await ensureSession();
       await dispatchMessage(current.id, text);
-      setDraft("");
     } catch {
       message.error(t("support.sendFailed"));
     } finally {
-      sendingRef.current = false;
+      releaseSendLock(sendingRef);
     }
   };
 
@@ -218,7 +222,7 @@ export function SupportChatPanel({ className }: SupportChatPanelProps) {
 
   return (
     <div
-      className={`flex min-h-[min(72vh,640px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ${className ?? ""}`}
+      className={`flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ${className ?? ""}`}
     >
       <div className="flex items-center justify-between bg-[#2563EB] px-4 py-3 text-white">
         <div className="flex items-center gap-2">
@@ -266,15 +270,15 @@ export function SupportChatPanel({ className }: SupportChatPanelProps) {
             placeholder={t("support.inputPlaceholder")}
             autoSize={{ minRows: 1, maxRows: 4 }}
             className="!rounded-xl"
-            onPressEnter={(e) => {
-              if (!e.shiftKey) {
-                e.preventDefault();
-                void handleSend();
-              }
+            onKeyDown={(e) => {
+              if (!shouldSendOnEnterKey(e)) return;
+              e.preventDefault();
+              void handleSend();
             }}
           />
           <Button
             type="primary"
+            htmlType="button"
             shape="circle"
             size="large"
             icon={<SendOutlined />}

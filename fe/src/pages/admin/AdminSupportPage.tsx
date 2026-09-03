@@ -24,6 +24,7 @@ import { useSupportSocket } from "../../hooks/useSupportSocket";
 import { api } from "../../lib/api";
 import { sendSupportMessageRest } from "../../lib/supportApi";
 import { appendSupportMessages } from "../../lib/supportMessages";
+import { acquireSendLock, releaseSendLock, shouldSendOnEnterKey } from "../../lib/supportSendGuard";
 import type { SupportMessage, SupportSession, SupportWsEvent } from "../../types/support";
 
 async function fetchSessions() {
@@ -102,6 +103,7 @@ export function AdminSupportPage() {
   const joinedSessionRef = useRef<string | null>(null);
   const loadedSessionRef = useRef<string | null>(null);
   const sendingRef = useRef(false);
+  const lastSentRef = useRef<{ text: string; at: number } | null>(null);
 
   const selectedId = params.id ?? null;
 
@@ -203,28 +205,33 @@ export function AdminSupportPage() {
 
   const handleSend = async () => {
     const text = draft.trim();
-    if (!text || !selectedId || sendingRef.current) return;
+    if (!text || !selectedId) return;
+    if (!acquireSendLock(sendingRef, lastSentRef, text)) return;
 
-    sendingRef.current = true;
+    setDraft("");
+
     try {
       const viaWs = sendMessage(selectedId, text);
       if (!viaWs) {
         const created = await sendSupportMessageRest(selectedId, text, "admin");
         appendMessages(created);
       }
-      setDraft("");
     } catch {
       message.warning(t("support.sendFailed"));
     } finally {
-      sendingRef.current = false;
+      releaseSendLock(sendingRef);
     }
   };
 
   const selectedSession = sessionQuery.data;
 
   return (
-    <PageContainer title={t("adminSupport.title")} subTitle={t("adminSupport.subtitle")}>
-      <div className="grid h-[calc(100vh-12rem)] min-h-[520px] gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[340px_1fr]">
+    <PageContainer
+      title={t("adminSupport.title")}
+      subTitle={t("adminSupport.subtitle")}
+      childrenContentStyle={{ height: "calc(100vh - 12rem)", padding: 0 }}
+    >
+      <div className="grid h-full min-h-[520px] gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[340px_1fr]">
         {/* Session list */}
         <div className="flex flex-col border-r border-slate-200 bg-slate-50">
           <div className="border-b border-slate-200 px-4 py-3">
@@ -259,15 +266,15 @@ export function AdminSupportPage() {
         </div>
 
         {/* Chat panel */}
-        <div className="flex min-w-0 flex-col">
+        <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
           {!selectedId ? (
             <div className="flex flex-1 flex-col items-center justify-center text-slate-400">
               <UserOutlined className="mb-3 text-4xl" />
               <p>{t("adminSupport.selectSession")}</p>
             </div>
           ) : (
-            <>
-              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+            <div className="flex h-full min-h-0 flex-col overflow-hidden">
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
                 <div>
                   <div className="font-semibold text-slate-900">
                     {selectedSession?.user?.fullName ?? "…"}
@@ -315,7 +322,7 @@ export function AdminSupportPage() {
                 )}
               </div>
 
-              <div className="border-t border-slate-200 bg-white p-4">
+              <div className="shrink-0 border-t border-slate-200 bg-white p-4">
                 <div className="flex items-end gap-2">
                   <Input.TextArea
                     value={draft}
@@ -323,15 +330,15 @@ export function AdminSupportPage() {
                     placeholder={t("support.inputPlaceholder")}
                     autoSize={{ minRows: 1, maxRows: 4 }}
                     className="!rounded-xl"
-                    onPressEnter={(e) => {
-                      if (!e.shiftKey) {
-                        e.preventDefault();
-                        void handleSend();
-                      }
+                    onKeyDown={(e) => {
+                      if (!shouldSendOnEnterKey(e)) return;
+                      e.preventDefault();
+                      void handleSend();
                     }}
                   />
                   <Button
                     type="primary"
+                    htmlType="button"
                     icon={<SendOutlined />}
                     size="large"
                     className="!bg-[#2563EB]"
@@ -341,7 +348,7 @@ export function AdminSupportPage() {
                   </Button>
                 </div>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
