@@ -63,3 +63,28 @@ export function formatLicenseRequestTelegramMessage(input: {
   lines.push("", "Vui lòng duyệt trên trang admin.");
   return lines.join("\n");
 }
+
+export function formatSupportTelegramMessage(input: {
+  sessionId: string;
+  userEmail: string;
+  userFullName: string;
+  createdAt: Date;
+  adminUrl?: string;
+}): string {
+  const lines = [
+    "<b>💬 Khách cần hỗ trợ</b>",
+    "",
+    `<b>User:</b> ${escapeHtml(input.userFullName)}`,
+    `<b>Email:</b> ${escapeHtml(input.userEmail)}`,
+    `<b>Session:</b> <code>${escapeHtml(input.sessionId)}</code>`,
+    `<b>Thời gian:</b> ${escapeHtml(input.createdAt.toISOString())}`,
+  ];
+
+  if (input.adminUrl) {
+    lines.push("", `<a href="${escapeHtml(input.adminUrl)}">Mở phiên hỗ trợ</a>`);
+  } else {
+    lines.push("", "Vui lòng mở trang admin → Hỗ trợ khách hàng.");
+  }
+
+  return lines.join("\n");
+}

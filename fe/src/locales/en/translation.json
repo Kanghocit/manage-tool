@@ -41,6 +41,7 @@
     "licenses": "Licenses",
     "licensePackages": "Package pricing",
     "licenseRequests": "License requests",
+    "support": "Customer support",
     "guide": "User guide"
   },
   "common": {
@@ -578,5 +579,26 @@
         "s6": "Admin-created keys also start counting duration at user activation — remind users to activate promptly."
       }
     }
+  },
+  "support": {
+    "title": "Support",
+    "emptyHint": "Pick a suggested question or type a message to start.",
+    "inputPlaceholder": "Type a message…",
+    "contactAdmin": "Contact admin",
+    "waitingAdmin": "Waiting for admin",
+    "autoReply": "Auto",
+    "reconnecting": "Reconnecting…",
+    "send": "Send"
+  },
+  "adminSupport": {
+    "title": "Customer support",
+    "subtitle": "Temporary chat sessions — hard delete when done.",
+    "sessions": "Open sessions",
+    "noSessions": "No support sessions yet.",
+    "selectSession": "Select a session to reply",
+    "deleteSession": "Close & delete session",
+    "deleteConfirm": "Permanently delete all messages in this session?",
+    "deleted": "Support session deleted.",
+    "deleteFailed": "Could not delete session."
   }
 }

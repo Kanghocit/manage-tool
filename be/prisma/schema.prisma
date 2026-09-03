@@ -42,6 +42,17 @@ enum RegistrationSource {
   admin
 }
 
+enum SupportSessionStatus {
+  open
+  waiting_admin
+}
+
+enum SupportMessageSender {
+  user
+  bot
+  admin
+}
+
 model User {
   id                   String             @id @default(uuid())
   email                String             @unique
@@ -70,6 +81,7 @@ model User {
   licenseRequests          LicenseRequest[]     @relation("LicenseRequestUser")
   reviewedLicenseRequests  LicenseRequest[]     @relation("LicenseRequestReviewer")
   createdPackagePromotions LicensePackagePromotion[] @relation("PackagePromotionCreator")
+  supportSessions          SupportSession[]
 
   @@index([registrationSource, welcomeEmailSentAt])
 }
@@ -234,4 +246,30 @@ model AuditLog {
 
   @@index([targetType, targetId])
   @@index([action])
+}
+
+model SupportSession {
+  id        String               @id @default(uuid())
+  userId    String
+  status    SupportSessionStatus @default(open)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages SupportMessage[]
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+}
+
+model SupportMessage {
+  id        String               @id @default(uuid())
+  sessionId String
+  sender    SupportMessageSender
+  content   String
+  createdAt DateTime             @default(now())
+
+  session SupportSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
 }

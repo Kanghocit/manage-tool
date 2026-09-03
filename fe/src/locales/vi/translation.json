@@ -41,6 +41,7 @@
     "licenses": "License",
     "licensePackages": "Giá gói",
     "licenseRequests": "Yêu cầu license",
+    "support": "Hỗ trợ khách hàng",
     "guide": "Hướng dẫn"
   },
   "common": {
@@ -577,5 +578,26 @@
         "s6": "Thời hạn license admin tạo cũng tính từ lúc user kích hoạt — nhắc user activate sớm nếu cần."
       }
     }
+  },
+  "support": {
+    "title": "Hỗ trợ",
+    "emptyHint": "Chọn câu hỏi gợi ý hoặc nhập tin nhắn để bắt đầu.",
+    "inputPlaceholder": "Nhập tin nhắn…",
+    "contactAdmin": "Liên hệ admin",
+    "waitingAdmin": "Đang chờ admin",
+    "autoReply": "Tự động",
+    "reconnecting": "Đang kết nối lại…",
+    "send": "Gửi"
+  },
+  "adminSupport": {
+    "title": "Hỗ trợ khách hàng",
+    "subtitle": "Phiên chat tạm thời — xóa cứng sau khi xử lý xong.",
+    "sessions": "Phiên đang mở",
+    "noSessions": "Chưa có phiên hỗ trợ.",
+    "selectSession": "Chọn một phiên để trả lời",
+    "deleteSession": "Đóng & xóa phiên",
+    "deleteConfirm": "Xóa cứng toàn bộ tin nhắn trong phiên này?",
+    "deleted": "Đã xóa phiên hỗ trợ.",
+    "deleteFailed": "Không thể xóa phiên."
   }
 }

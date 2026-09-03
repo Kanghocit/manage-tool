@@ -1,6 +1,7 @@
 import { createApp } from './app'
 import { env } from './config/env'
 import { prisma } from './lib/prisma'
+import { attachSupportWebSocket } from './lib/supportWs'
 
 const start = async () => {
   const app = createApp()
@@ -8,6 +9,9 @@ const start = async () => {
   const server = app.listen(env.port, () => {
     console.log(`[api] listening on http://localhost:${env.port} (${env.nodeEnv})`)
   })
+
+  attachSupportWebSocket(server)
+  console.log('[api] WebSocket support chat enabled at /ws/support')
 
   const shutdown = async (signal: string) => {
     console.log(`[api] received ${signal}, closing...`)

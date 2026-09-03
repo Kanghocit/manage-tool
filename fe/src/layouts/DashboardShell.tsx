@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import {
   BookOutlined,
+  CustomerServiceOutlined,
   DashboardOutlined,
   DollarOutlined,
   FileTextOutlined,
@@ -35,6 +36,8 @@ import { AdminLicenseDetailPage } from "../pages/admin/AdminLicenseDetailPage";
 import { AdminUsersPage } from "../pages/admin/AdminUsersPage";
 import { AdminLicensePackagesPage } from "../pages/admin/AdminLicensePackagesPage";
 import { AdminLicenseRequestsPage } from "../pages/admin/AdminLicenseRequestsPage";
+import { AdminSupportPage } from "../pages/admin/AdminSupportPage";
+import { SupportChatWidget } from "../components/support/SupportChatWidget";
 
 export function DashboardShell() {
   const location = useLocation();
@@ -80,6 +83,11 @@ export function DashboardShell() {
           path: "/admin/license-requests",
           icon: <FileTextOutlined />,
           name: t("menu.licenseRequests"),
+        },
+        {
+          path: "/admin/support",
+          icon: <CustomerServiceOutlined />,
+          name: t("menu.support"),
         },
         { path: "/admin/users", icon: <TeamOutlined />, name: t("menu.users") },
       );
@@ -235,6 +243,14 @@ export function DashboardShell() {
               }
             />
             <Route
+              path="/admin/support/:id?"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <AdminSupportPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/admin/users"
               element={
                 <ProtectedRoute roles={["admin"]}>
@@ -254,6 +270,7 @@ export function DashboardShell() {
           </Routes>
         </div>
       </div>
+      {user?.role !== "admin" && <SupportChatWidget />}
     </ProLayout>
   );
 }
