@@ -3,6 +3,7 @@ import {
   BookOutlined,
   CustomerServiceOutlined,
   DashboardOutlined,
+  ReadOutlined,
   DollarOutlined,
   FileTextOutlined,
   KeyOutlined,
@@ -59,6 +60,11 @@ export function DashboardShell() {
         path: "/guide",
         icon: <BookOutlined />,
         name: t("menu.guide"),
+      },
+      {
+        path: "/study",
+        icon: <ReadOutlined />,
+        name: t("menu.study"),
       },
       {
         path: "/my-license",

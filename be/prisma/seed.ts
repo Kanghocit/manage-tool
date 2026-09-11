@@ -1,10 +1,11 @@
-import 'dotenv/config'
-import bcrypt from 'bcrypt'
-import { PrismaClient } from '@prisma/client'
+import "dotenv/config";
+import bcrypt from "bcrypt";
+import { PrismaClient } from "@prisma/client";
 
-import { DEFAULT_PACKAGE_SEED } from '../src/config/licensePackages'
+import { DEFAULT_PACKAGE_SEED } from "../src/config/licensePackages";
+import { ensureStudySeed } from "../src/lib/studyService";
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
 async function seedPackages() {
   for (const pkg of DEFAULT_PACKAGE_SEED) {
@@ -19,44 +20,47 @@ async function seedPackages() {
         isActive: true,
       },
       update: {},
-    })
+    });
   }
-  console.log('[seed] license packages ensured')
+  console.log("[seed] license packages ensured");
 }
 
 const main = async () => {
-  await seedPackages()
+  await seedPackages();
 
-  const email = process.env.SEED_ADMIN_EMAIL ?? 'admin@example.com'
-  const password = process.env.SEED_ADMIN_PASSWORD ?? 'Admin@123'
-  const fullName = process.env.SEED_ADMIN_NAME ?? 'System Admin'
+  await ensureStudySeed();
+  console.log("[seed] study vocabulary ensured");
 
-  const existing = await prisma.user.findUnique({ where: { email } })
+  const email = process.env.SEED_ADMIN_EMAIL ?? "admin@example.com";
+  const password = process.env.SEED_ADMIN_PASSWORD ?? "Admin@123";
+  const fullName = process.env.SEED_ADMIN_NAME ?? "System Admin";
+
+  const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    console.log(`[seed] admin ${email} already exists, skipping`)
-    return
+    console.log(`[seed] admin ${email} already exists, skipping`);
+    return;
   }
 
-  const passwordHash = await bcrypt.hash(password, 10)
+  const passwordHash = await bcrypt.hash(password, 10);
   const admin = await prisma.user.create({
     data: {
       email,
       passwordHash,
       fullName,
-      role: 'admin',
-      status: 'active',
+      role: "admin",
+      status: "active",
     },
-  })
+  });
 
-  console.log(`[seed] created admin ${admin.email} (id=${admin.id})`)
-  console.log(`[seed] password: ${password} (đổi ngay khi deploy production)`)
-}
+  console.log(`[seed] created admin ${admin.email} (id=${admin.id})`);
+  console.log(`[seed] password: ${password} (đổi ngay khi deploy production)`);
+};
 
 main()
   .catch((err) => {
-    console.error('[seed] failed', err)
-    process.exit(1)
+    console.error("[seed] failed", err);
+    process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect()
-  })
+    await prisma.$disconnect();
+  });

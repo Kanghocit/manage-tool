@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 export type MenuKey =
   | "/dashboard"
   | "/guide"
+  | "/study"
   | "/my-license"
   | "/support"
   | "/admin/users"

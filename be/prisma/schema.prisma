@@ -53,6 +53,13 @@ enum SupportMessageSender {
   admin
 }
 
+enum StudyWordStatus {
+  new
+  learning
+  review
+  mastered
+}
+
 model User {
   id                   String             @id @default(uuid())
   email                String             @unique
@@ -83,6 +90,16 @@ model User {
   createdPackagePromotions LicensePackagePromotion[] @relation("PackagePromotionCreator")
   supportSessions          SupportSession[]
   authHandoffCodes         AuthHandoffCode[]
+  studyWordLists           StudyWordList[]
+  studyListEnrollments     StudyListEnrollment[]
+  studyWordProgress        StudyWordProgress[]
+  studyUserSettings        StudyUserSettings?
+  studyDailyActivities     StudyDailyActivity[]
+  studyHiddenLists         StudyHiddenList[]
+  studyHiddenWords         StudyHiddenWord[]
+  studyWordOverrides       StudyWordOverride[]
+  studyListMetaOverrides   StudyListMetaOverride[]
+  studyUserWords           StudyUserWord[]
 
   @@index([registrationSource, welcomeEmailSentAt])
 }
@@ -287,4 +304,157 @@ model SupportMessage {
   session SupportSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId, createdAt])
+}
+
+model StudyWordList {
+  id          String   @id
+  userId      String?
+  title       String
+  description String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user       User?                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  words      StudyWord[]
+  enrollments StudyListEnrollment[]
+
+  @@index([userId])
+}
+
+model StudyWord {
+  id           String   @id
+  listId       String
+  word         String
+  pos          String
+  ipa          String   @default("")
+  definitionVi String
+  definitionEn String
+  examples     Json
+  imageEmoji   String   @default("📖")
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  list StudyWordList @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@index([listId, sortOrder])
+}
+
+model StudyUserWord {
+  id           String   @id @default(uuid())
+  userId       String
+  listId       String
+  word         String
+  pos          String
+  ipa          String   @default("")
+  definitionVi String
+  definitionEn String
+  examples     Json
+  imageEmoji   String   @default("📖")
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, listId])
+}
+
+model StudyListEnrollment {
+  userId     String
+  listId     String
+  enrolledAt DateTime @default(now())
+
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  list StudyWordList @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@id([userId, listId])
+}
+
+model StudyWordProgress {
+  id             String          @id @default(uuid())
+  userId         String
+  listId         String
+  wordId         String
+  status         StudyWordStatus @default(new)
+  intervalDays   Int             @default(0)
+  easiness       Float           @default(2.5)
+  repetitions    Int             @default(0)
+  nextReviewAt   DateTime?
+  lastReviewedAt DateTime?
+  correctCount   Int             @default(0)
+  wrongCount     Int             @default(0)
+  updatedAt      DateTime        @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listId, wordId])
+  @@index([userId, listId])
+}
+
+model StudyUserSettings {
+  userId         String  @id
+  dailyNewWords  Int     @default(30)
+  showAllLearned Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StudyDailyActivity {
+  userId       String
+  activityDate DateTime @db.Date
+  reviewCount  Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, activityDate])
+  @@index([userId, activityDate])
+}
+
+model StudyHiddenList {
+  userId String
+  listId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, listId])
+}
+
+model StudyHiddenWord {
+  userId String
+  listId String
+  wordId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, listId, wordId])
+}
+
+model StudyWordOverride {
+  userId       String
+  wordId       String
+  listId       String
+  word         String
+  pos          String
+  ipa          String   @default("")
+  definitionVi String
+  definitionEn String
+  examples     Json
+  imageEmoji   String   @default("📖")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, wordId])
+  @@index([userId, listId])
+}
+
+model StudyListMetaOverride {
+  userId      String
+  listId      String
+  title       String?
+  description String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, listId])
 }

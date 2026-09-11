@@ -22,6 +22,12 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config as { _retry?: boolean } | undefined
     const status = error?.response?.status as number | undefined
+    const errorCode = error?.response?.data?.code as string | undefined
+
+    if (status === 401 && errorCode === 'USER_NOT_FOUND') {
+      useAuthStore.getState().logout()
+      throw error
+    }
 
     if (!original || status !== 401 || original._retry) {
       throw error

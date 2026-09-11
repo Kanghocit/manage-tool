@@ -10,10 +10,17 @@ export type AuthUser = {
   status: 'active' | 'blocked'
 }
 
+type StoredSession = {
+  user: AuthUser
+  accessToken: string
+  refreshToken: string
+}
+
 type AuthState = {
   user: AuthUser | null
   accessToken: string | null
   refreshToken: string | null
+  hasHydrated: boolean
   setSession: (user: AuthUser, accessToken: string, refreshToken: string) => void
   setTokens: (accessToken: string, refreshToken: string) => void
   logout: () => void
@@ -22,10 +29,25 @@ type AuthState = {
 
 const STORAGE_KEY = 'license-admin-auth'
 
+function readStoredSession(): StoredSession | null {
+  const raw = localStorage.getItem(STORAGE_KEY)
+  if (!raw) return null
+
+  try {
+    return JSON.parse(raw) as StoredSession
+  } catch {
+    localStorage.removeItem(STORAGE_KEY)
+    return null
+  }
+}
+
+const initialSession = readStoredSession()
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  accessToken: null,
-  refreshToken: null,
+  user: initialSession?.user ?? null,
+  accessToken: initialSession?.accessToken ?? null,
+  refreshToken: initialSession?.refreshToken ?? null,
+  hasHydrated: true,
   setSession: (user, accessToken, refreshToken) => {
     const payload = { user, accessToken, refreshToken }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
@@ -42,17 +64,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user: null, accessToken: null, refreshToken: null })
   },
   hydrate: () => {
-    const raw = localStorage.getItem(STORAGE_KEY)
-
-    if (!raw) {
-      return
+    const stored = readStoredSession()
+    if (stored) {
+      set(stored)
     }
-
-    try {
-      const parsed = JSON.parse(raw) as { user: AuthUser; accessToken: string; refreshToken: string }
-      set(parsed)
-    } catch {
-      localStorage.removeItem(STORAGE_KEY)
-    }
+    set({ hasHydrated: true })
   },
 }))

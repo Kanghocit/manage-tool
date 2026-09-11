@@ -25,6 +25,7 @@ import { packagesRouter } from './routes/packages'
 import { licenseRequestsRouter } from './routes/licenseRequests'
 import { supportRouter } from './routes/support'
 import { adminSupportRouter } from './routes/adminSupport'
+import { studyRouter } from './routes/study'
 
 export const createApp = () => {
   const app = express();
@@ -176,6 +177,16 @@ export const createApp = () => {
       legacyHeaders: false,
     }),
     adminSupportRouter,
+  )
+  app.use(
+    '/api/study',
+    rateLimit({
+      windowMs: 60 * 1000,
+      limit: 180,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+    studyRouter,
   )
   app.use('/', privacyRouter)
 
