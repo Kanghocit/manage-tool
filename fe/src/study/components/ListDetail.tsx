@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Modal, Spin, message } from "antd";
+import { App as AntApp, Spin, message } from "antd";
 
 import { ActivityHeatmap } from "./ActivityHeatmap";
 import {
@@ -28,6 +28,7 @@ function statusBadge(status: WordStatus) {
 }
 
 export function ListDetail() {
+  const { modal } = AntApp.useApp();
   const { listId = "" } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -59,7 +60,7 @@ export function ListDetail() {
   }, [detail?.progress]);
 
   const handleUnenroll = () => {
-    Modal.confirm({
+    modal.confirm({
       title: "Dừng học list này?",
       content: "List sẽ ẩn khỏi tab Đang học. Tiến độ vẫn được lưu.",
       okText: "Dừng học",

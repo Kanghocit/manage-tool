@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Button, Empty, Form, Input, Modal, Spin, message } from "antd";
+import { App as AntApp, Button, Empty, Form, Input, Modal, Spin, message } from "antd";
 import {
   DeleteOutlined,
   EditOutlined,
@@ -13,6 +13,7 @@ import { studyKeys } from "../lib/queryKeys";
 import type { StudyList } from "../lib/types";
 
 export function ManageLists() {
+  const { modal } = AntApp.useApp();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [form] = Form.useForm();
@@ -42,7 +43,7 @@ export function ManageLists() {
   };
 
   const handleDelete = (list: StudyList) => {
-    Modal.confirm({
+    modal.confirm({
       title: "Xoá list này?",
       content: (
         <span>

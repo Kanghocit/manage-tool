@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Button, Form, Input, Modal, Spin, message } from "antd";
+import { App as AntApp, Button, Form, Input, Modal, Spin, message } from "antd";
 import {
   DeleteOutlined,
   EditOutlined,
@@ -31,6 +31,7 @@ type WordFormValues = {
 };
 
 export function ManageListDetail() {
+  const { modal } = AntApp.useApp();
   const { listId = "" } = useParams();
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
@@ -132,7 +133,7 @@ export function ManageListDetail() {
   };
 
   const handleDeleteList = () => {
-    Modal.confirm({
+    modal.confirm({
       title: "Xoá list này?",
       content:
         listSource === "seed"
@@ -154,15 +155,19 @@ export function ManageListDetail() {
   };
 
   const handleDeleteWord = (word: StudyWord) => {
-    Modal.confirm({
+    modal.confirm({
       title: "Xoá từ?",
       content: word.word,
       okText: "Xoá",
       okButtonProps: { danger: true },
       onOk: async () => {
-        await deleteWord(listId, word.id);
-        message.success("Đã xoá từ");
-        await load();
+        try {
+          await deleteWord(listId, word.id);
+          message.success("Đã xoá từ");
+          await load();
+        } catch {
+          message.error("Không xoá được từ");
+        }
       },
     });
   };

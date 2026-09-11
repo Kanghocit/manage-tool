@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { InputNumber, Modal, Spin, message } from "antd";
+import { App as AntApp, InputNumber, Spin, message } from "antd";
 
 import {
   checkAnswerLocal,
@@ -12,6 +12,7 @@ import { speakWord } from "../lib/speech";
 import type { StudyWord } from "../lib/types";
 
 export function ReviewSession() {
+  const { modal } = AntApp.useApp();
   const { listId = "" } = useParams();
   const [queue, setQueue] = useState<StudyWord[]>([]);
   const [index, setIndex] = useState(0);
@@ -97,7 +98,7 @@ export function ReviewSession() {
 
   const openSettings = () => {
     let value = dailyNewWords;
-    Modal.confirm({
+    modal.confirm({
       title: "Cài đặt ôn tập",
       content: (
         <div style={{ marginTop: 12 }}>
