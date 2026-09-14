@@ -331,7 +331,7 @@ export function CaseStudyQuiz() {
     );
   }
 
-  if (isError || (!isLoading && data && !session)) {
+  if (isError || !data || !session) {
     return <Navigate to="/study/cases" replace />;
   }
 
