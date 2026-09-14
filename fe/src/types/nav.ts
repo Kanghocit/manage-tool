@@ -4,6 +4,8 @@ export type MenuKey =
   | "/dashboard"
   | "/guide"
   | "/study"
+  | "/study/cases"
+  | "/study/manage"
   | "/my-license"
   | "/support"
   | "/admin/users"

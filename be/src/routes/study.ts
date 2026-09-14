@@ -20,11 +20,13 @@ import {
 } from '../lib/studyService'
 import { parseVocabularyPaste } from '../lib/parseVocabularyPaste'
 import { checkAnswer } from '../lib/studySrs'
-import { requireAuth } from '../middleware/auth'
+import { requireAuth, requireRole } from '../middleware/auth'
 import { requireExistingUser } from '../middleware/requireExistingUser'
+import { caseStudyRouter } from './caseStudy'
 
 export const studyRouter = express.Router()
-studyRouter.use(requireAuth, requireExistingUser)
+studyRouter.use(requireAuth, requireExistingUser, requireRole('admin'))
+studyRouter.use(caseStudyRouter)
 
 studyRouter.get('/dashboard', async (req, res, next) => {
   try {

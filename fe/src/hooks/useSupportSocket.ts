@@ -13,12 +13,16 @@ type UseSupportSocketOptions = {
 export function useSupportSocket(options: UseSupportSocketOptions = {}) {
   const { enabled = true, onEvent } = options;
   const onEventRef = useRef(onEvent);
-  onEventRef.current = onEvent;
+
+  useEffect(() => {
+    onEventRef.current = onEvent;
+  }, [onEvent]);
 
   const accessToken = useAuthStore((s) => s.accessToken);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
+  const connectRef = useRef<(() => Promise<void>) | null>(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
@@ -74,7 +78,7 @@ export function useSupportSocket(options: UseSupportSocketOptions = {}) {
               if (newAccess && newRefresh) {
                 useAuthStore.getState().setTokens(newAccess, newRefresh);
                 ws.close();
-                void connect();
+                void connectRef.current?.();
               }
             } catch {
               useAuthStore.getState().logout();
@@ -100,7 +104,7 @@ export function useSupportSocket(options: UseSupportSocketOptions = {}) {
       reconnectAttemptRef.current += 1;
       clearReconnectTimer();
       reconnectTimerRef.current = window.setTimeout(() => {
-        void connect();
+        void connectRef.current?.();
       }, delay);
     };
 
@@ -110,15 +114,19 @@ export function useSupportSocket(options: UseSupportSocketOptions = {}) {
   }, [clearReconnectTimer, enabled]);
 
   useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
+
+  useEffect(() => {
     mountedRef.current = true;
     if (enabled && accessToken) {
-      void connect();
+      queueMicrotask(() => {
+        void connect();
+      });
     } else {
       clearReconnectTimer();
       wsRef.current?.close();
       wsRef.current = null;
-      setConnected(false);
-      setConnecting(false);
     }
 
     return () => {
@@ -126,8 +134,6 @@ export function useSupportSocket(options: UseSupportSocketOptions = {}) {
       clearReconnectTimer();
       wsRef.current?.close();
       wsRef.current = null;
-      setConnected(false);
-      setConnecting(false);
     };
   }, [accessToken, clearReconnectTimer, connect, enabled]);
 

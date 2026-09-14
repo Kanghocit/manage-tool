@@ -269,6 +269,12 @@
   border-bottom: 2px solid var(--study-border);
   margin-bottom: 20px;
   overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.study-segment::-webkit-scrollbar {
+  display: none;
 }
 
 .study-segment-btn {
@@ -782,5 +788,34 @@
   .study-hero-stat {
     flex: 1;
     min-width: 0;
+  }
+}
+
+/* Embedded in License Admin shell — must come after base .study-shell rules */
+.study-shell.study-shell--embedded {
+  min-height: auto;
+  background: transparent;
+  display: block;
+}
+
+.study-shell.study-shell--embedded .study-sidebar {
+  display: none !important;
+}
+
+.study-shell.study-shell--embedded .study-main {
+  padding: 0;
+  max-width: none;
+}
+
+@media (max-width: 767px) {
+  .study-shell.study-shell--embedded .study-main {
+    /* room for fixed bottom nav only (StudySubNav) */
+    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (min-width: 768px) {
+  .study-shell.study-shell--embedded .study-main {
+    padding-bottom: 0;
   }
 }

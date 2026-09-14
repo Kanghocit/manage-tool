@@ -10,7 +10,8 @@ import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { ExtensionHandoffPage } from "./pages/auth/ExtensionHandoffPage";
 import { DashboardShell } from "./layouts/DashboardShell";
-import { StudyRoutes } from "./study/StudyRoutes";
+import { CaseStudyQuiz } from "./study/components/CaseStudyQuiz";
+import { AdminCaseStudyRoute } from "./study/components/AdminCaseStudyRoute";
 
 function LoginRoute() {
   const user = useAuthStore((state) => state.user);
@@ -44,10 +45,22 @@ export function AppRoutes() {
         <Route path="/login" element={<LoginRoute />} />
         <Route path="/register" element={<RegisterRoute />} />
         <Route
-          path="/study/*"
+          path="/study/cases/:setId/part/:part"
           element={
-            <ProtectedRoute>
-              <StudyRoutes />
+            <ProtectedRoute roles={["admin"]}>
+              <AdminCaseStudyRoute>
+                <CaseStudyQuiz />
+              </AdminCaseStudyRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/study/cases/:setId"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <AdminCaseStudyRoute>
+                <CaseStudyQuiz />
+              </AdminCaseStudyRoute>
             </ProtectedRoute>
           }
         />
@@ -63,4 +76,3 @@ export function AppRoutes() {
     </BrowserRouter>
   );
 }
-

@@ -26,6 +26,7 @@ import { useTranslation } from "react-i18next";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import type { MenuKey, NavRoute } from "../types/nav";
 import { useAuthStore } from "../store/useAuthStore";
+import { StudyRoutes } from "../study/StudyRoutes";
 
 import { OverviewPage } from "../pages/dashboard/OverviewPage";
 import { UserGuidePage } from "../pages/dashboard/UserGuidePage";
@@ -62,16 +63,19 @@ export function DashboardShell() {
         name: t("menu.guide"),
       },
       {
-        path: "/study",
-        icon: <ReadOutlined />,
-        name: t("menu.study"),
-      },
-      {
         path: "/my-license",
         icon: <KeyOutlined />,
         name: t("menu.myLicense"),
       },
     ];
+
+    if (user?.role === "admin") {
+      base.splice(2, 0, {
+        path: "/study",
+        icon: <ReadOutlined />,
+        name: t("menu.study"),
+      });
+    }
 
     if (user?.role !== "admin") {
       base.push({
@@ -113,10 +117,16 @@ export function DashboardShell() {
     return base;
   }, [supportInboxBadge, t, user?.role]);
 
+  const menuPathname = useMemo(() => {
+    const path = location.pathname;
+    if (path.startsWith("/study")) return "/study";
+    return path;
+  }, [location.pathname]);
+
   return (
     <ProLayout
       title={t("app.title")}
-      location={{ pathname: location.pathname }}
+      location={{ pathname: menuPathname }}
       route={{ routes }}
       avatarProps={{
         title: (
@@ -294,6 +304,14 @@ export function DashboardShell() {
               element={
                 <ProtectedRoute roles={["admin"]}>
                   <AdminUsersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/study/*"
+              element={
+                <ProtectedRoute roles={["admin"]}>
+                  <StudyRoutes />
                 </ProtectedRoute>
               }
             />

@@ -41,19 +41,23 @@ export function ReviewSession() {
   }, [listId]);
 
   useEffect(() => {
-    void loadQueue();
+    queueMicrotask(() => {
+      void loadQueue();
+    });
   }, [loadQueue]);
 
   const current = queue[index];
 
   useEffect(() => {
     if (!current) return;
-    setInput("");
-    setRevealed(false);
-    setChecked(null);
-    speakWord(current.word, "en-US");
-    inputRef.current?.focus();
-  }, [current?.id]);
+    queueMicrotask(() => {
+      setInput("");
+      setRevealed(false);
+      setChecked(null);
+      speakWord(current.word, "en-US");
+      inputRef.current?.focus();
+    });
+  }, [current?.id, current]);
 
   const example = current?.examples[0];
 

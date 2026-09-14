@@ -121,13 +121,17 @@ export function AdminSupportPage() {
 
   useEffect(() => {
     if (!selectedId) {
-      setMessages([]);
-      loadedSessionRef.current = null;
+      queueMicrotask(() => {
+        setMessages([]);
+        loadedSessionRef.current = null;
+      });
       return;
     }
     if (sessionQuery.data?.id === selectedId && loadedSessionRef.current !== selectedId) {
-      setMessages(sessionQuery.data.messages ?? []);
-      loadedSessionRef.current = selectedId;
+      queueMicrotask(() => {
+        setMessages(sessionQuery.data!.messages ?? []);
+        loadedSessionRef.current = selectedId;
+      });
     }
   }, [selectedId, sessionQuery.data]);
 
@@ -317,7 +321,7 @@ export function AdminSupportPage() {
                     messages={messages}
                     perspective="admin"
                     emptyText={t("support.emptyHint")}
-                    listRef={listRef}
+                    ref={listRef}
                   />
                 )}
               </div>

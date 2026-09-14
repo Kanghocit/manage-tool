@@ -64,10 +64,12 @@ export function MyLicensePage() {
   useEffect(() => {
     const fromQuery = readDeviceIdFromSearchParams(searchParams);
     if (!fromQuery) return;
-    setDeviceId((prev: string) => {
-      if (fromQuery === prev) return prev;
-      localStorage.setItem(WEB_DEVICE_ID_STORAGE_KEY, fromQuery);
-      return fromQuery;
+    queueMicrotask(() => {
+      setDeviceId((prev: string) => {
+        if (fromQuery === prev) return prev;
+        localStorage.setItem(WEB_DEVICE_ID_STORAGE_KEY, fromQuery);
+        return fromQuery;
+      });
     });
   }, [searchParams]);
 
@@ -98,7 +100,7 @@ export function MyLicensePage() {
   useEffect(() => {
     const key = purchasedUnused?.licenseKey;
     if (isFullLicenseKey(key)) {
-      setLicenseKey(key);
+      queueMicrotask(() => setLicenseKey(key));
     }
   }, [purchasedUnused?.licenseKey, purchasedUnused?.id]);
 

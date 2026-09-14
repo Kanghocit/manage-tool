@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from "react";
+import { forwardRef, useLayoutEffect, useRef } from "react";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 
@@ -71,15 +71,10 @@ type ListProps = {
   messages: SupportMessage[];
   perspective: "user" | "admin";
   emptyText: string;
-  listRef?: React.RefObject<HTMLDivElement | null>;
 };
 
-export function SupportMessageList({
-  messages,
-  perspective,
-  emptyText,
-  listRef,
-}: ListProps) {
+export const SupportMessageList = forwardRef<HTMLDivElement, ListProps>(
+  function SupportMessageList({ messages, perspective, emptyText }, ref) {
   const innerRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -101,14 +96,15 @@ export function SupportMessageList({
     );
   }
 
+  const setRefs = (node: HTMLDivElement | null) => {
+    innerRef.current = node;
+    if (typeof ref === "function") ref(node);
+    else if (ref) ref.current = node;
+  };
+
   return (
     <div
-      ref={(node) => {
-        innerRef.current = node;
-        if (listRef) {
-          (listRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
-        }
-      }}
+      ref={setRefs}
       className="h-full min-h-0 overflow-y-auto overscroll-contain p-4"
     >
       <div className="flex flex-col gap-3">
@@ -118,7 +114,8 @@ export function SupportMessageList({
       </div>
     </div>
   );
-}
+},
+);
 
 export function SupportConnectionBanner({
   connected,

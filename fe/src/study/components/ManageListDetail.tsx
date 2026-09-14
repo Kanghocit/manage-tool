@@ -69,7 +69,9 @@ export function ManageListDetail() {
   }, [listId, metaForm]);
 
   useEffect(() => {
-    void load();
+    queueMicrotask(() => {
+      void load();
+    });
   }, [load]);
 
   const saveMeta = async () => {

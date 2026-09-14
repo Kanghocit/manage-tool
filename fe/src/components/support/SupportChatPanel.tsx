@@ -66,11 +66,13 @@ export function SupportChatPanel({ className }: SupportChatPanelProps) {
   useEffect(() => {
     const data = activeSessionQuery.data;
     if (!data) return;
-    setSession(data);
-    if (loadedSessionRef.current !== data.id) {
-      loadedSessionRef.current = data.id;
-      setMessages(data.messages ?? []);
-    }
+    queueMicrotask(() => {
+      setSession(data);
+      if (loadedSessionRef.current !== data.id) {
+        loadedSessionRef.current = data.id;
+        setMessages(data.messages ?? []);
+      }
+    });
   }, [activeSessionQuery.data]);
 
   const handleWsEvent = useCallback(
@@ -165,14 +167,7 @@ export function SupportChatPanel({ className }: SupportChatPanelProps) {
       });
 
     return creatingSessionRef.current;
-  }, [
-    activeSessionQuery.data,
-    activeSessionQuery.isFetching,
-    activeSessionQuery.isLoading,
-    activeSessionQuery,
-    createSessionMut,
-    session,
-  ]);
+  }, [activeSessionQuery, createSessionMut, session]);
 
   const dispatchMessage = async (sessionId: string, text: string) => {
     const viaWs = sendMessage(sessionId, text);
@@ -258,7 +253,7 @@ export function SupportChatPanel({ className }: SupportChatPanelProps) {
           messages={messages}
           perspective="user"
           emptyText={t("support.emptyHint")}
-          listRef={listRef}
+          ref={listRef}
         />
       </div>
 

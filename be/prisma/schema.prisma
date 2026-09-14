@@ -60,6 +60,11 @@ enum StudyWordStatus {
   mastered
 }
 
+enum CaseStudySetStatus {
+  draft
+  published
+}
+
 model User {
   id                   String             @id @default(uuid())
   email                String             @unique
@@ -100,6 +105,8 @@ model User {
   studyWordOverrides       StudyWordOverride[]
   studyListMetaOverrides   StudyListMetaOverride[]
   studyUserWords           StudyUserWord[]
+  caseStudySetsCreated     CaseStudySet[]      @relation("CaseStudySetCreator")
+  caseStudyAttempts        CaseStudyAttempt[]
 
   @@index([registrationSource, welcomeEmailSentAt])
 }
@@ -457,4 +464,73 @@ model StudyListMetaOverride {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, listId])
+}
+
+model CaseStudySet {
+  id          String             @id @default(uuid())
+  title       String
+  description String             @default("")
+  status      CaseStudySetStatus @default(draft)
+  createdById String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  createdBy User                 @relation("CaseStudySetCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  passages  CaseStudyPassage[]
+  questions CaseStudyQuestion[]
+  attempts  CaseStudyAttempt[]
+
+  @@index([status])
+  @@index([createdById])
+}
+
+model CaseStudyPassage {
+  id        String @id @default(uuid())
+  setId     String
+  part      Int
+  label     String @default("")
+  contentEn String @default("")
+  contentVi String @default("")
+  sortOrder Int    @default(0)
+
+  set       CaseStudySet        @relation(fields: [setId], references: [id], onDelete: Cascade)
+  questions CaseStudyQuestion[]
+
+  @@index([setId, sortOrder])
+}
+
+model CaseStudyQuestion {
+  id            String  @id @default(uuid())
+  setId         String
+  passageId     String?
+  part          Int
+  number        Int
+  stemEn        String
+  options       Json
+  correctKey    String
+  explanationVi String
+  sortOrder     Int     @default(0)
+
+  set     CaseStudySet      @relation(fields: [setId], references: [id], onDelete: Cascade)
+  passage CaseStudyPassage? @relation(fields: [passageId], references: [id], onDelete: SetNull)
+
+  @@unique([setId, number])
+  @@index([setId, sortOrder])
+  @@index([passageId])
+}
+
+model CaseStudyAttempt {
+  id           String   @id @default(uuid())
+  userId       String
+  setId        String
+  currentIndex Int      @default(0)
+  completed    Boolean  @default(false)
+  answers      Json     @default("{}")
+  updatedAt    DateTime @updatedAt
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  set  CaseStudySet @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, setId])
+  @@index([userId])
 }

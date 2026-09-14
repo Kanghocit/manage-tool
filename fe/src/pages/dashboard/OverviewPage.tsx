@@ -32,12 +32,16 @@ import type { LicensePackagePeriod } from "../../config/licensePackages";
 const ORDER_EXPIRY_MS = 120 * 1000; // 2 phút
 
 function useOrderCountdown(createdAt: string | undefined) {
-  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(() => {
+    if (!createdAt) return null;
+    const expiresAt = new Date(createdAt).getTime() + ORDER_EXPIRY_MS;
+    return Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+  });
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!createdAt) {
-      setSecondsLeft(null);
+      queueMicrotask(() => setSecondsLeft(null));
       return;
     }
     const expiresAt = new Date(createdAt).getTime() + ORDER_EXPIRY_MS;
@@ -48,7 +52,6 @@ function useOrderCountdown(createdAt: string | undefined) {
       );
       setSecondsLeft(remaining);
     };
-    tick();
     timerRef.current = setInterval(tick, 1000);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
