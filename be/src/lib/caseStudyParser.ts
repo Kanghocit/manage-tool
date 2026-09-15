@@ -17,7 +17,7 @@ export type CaseStudyPassagePreview = {
   part: 6 | 7
   label: string
   contentEn: string
-  contentVi: string
+  contentVi?: string
   questionNumbers: number[]
 }
 
