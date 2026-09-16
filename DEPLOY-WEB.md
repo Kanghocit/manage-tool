@@ -279,7 +279,24 @@ DevTools → tab **Network** → file `index-*.js` — hash phải khớp file t
 
 - Clone repo vào đúng path hoặc sửa `DEPLOY_PATH` + GitHub Secret cho khớp.
 
-### 8.3. `Cannot find module '../encodings'` + path `/root/manage-tool`
+### 8.3. `@prisma/client/scripts/postinstall.js` MODULE_NOT_FOUND khi `npm ci`
+
+- Thường do **`node_modules` cũ/lỗi** trên VPS (deploy bị hủy giữa chừng, hoặc cài dở).
+- Script deploy mới đã `rm -rf node_modules` + `npm ci --ignore-scripts` + `npx prisma generate`.
+- Sửa tay trên VPS nếu cần:
+
+```bash
+cd /var/www/manage-tool/be
+rm -rf node_modules
+npm ci --ignore-scripts
+npm rebuild canvas bcrypt sharp 2>/dev/null || true
+npx prisma generate
+npm run build
+npx prisma migrate deploy
+cd .. && pm2 reload ecosystem.config.cjs
+```
+
+### 8.4. `Cannot find module '../encodings'` + path `/root/manage-tool`
 
 - PM2/node_modules cũ ở path đã xóa.
 
@@ -291,7 +308,7 @@ rm -rf node_modules && npm ci && npm run build
 cd /var/www/manage-tool && pm2 start ecosystem.config.cjs && pm2 save
 ```
 
-### 8.4. `fe/dist` không có trên VPS
+### 8.5. `fe/dist` không có trên VPS
 
 - Deploy bị cắt trước bước Frontend.
 
@@ -301,7 +318,7 @@ npm ci
 VITE_API_URL=https://api.ankhang.name.vn npm run build
 ```
 
-### 8.5. `nginx -t` lỗi `unexpected ";"` dòng 4
+### 8.6. `nginx -t` lỗi `unexpected ";"` dòng 4
 
 - Sửa typo trong `/etc/nginx/sites-available/ankhang.name.vn` (thừa `;;`, thiếu path, sai block).
 
@@ -309,11 +326,11 @@ VITE_API_URL=https://api.ankhang.name.vn npm run build
 sudo nl -ba /etc/nginx/sites-available/ankhang.name.vn | head -20
 ```
 
-### 8.6. Chạy `ls` trên Mac thấy không có `/var/www/...`
+### 8.7. Chạy `ls` trên Mac thấy không có `/var/www/...`
 
 - Path `/var/www/manage-tool` chỉ có trên **VPS Linux**, không có trên Mac local.
 
-### 8.7. Đồng bộ FE sang `/var/www/ankhang` (tạm, không khuyến nghị)
+### 8.8. Đồng bộ FE sang `/var/www/ankhang` (tạm, không khuyến nghị)
 
 Nếu chưa sửa Nginx `root`:
 

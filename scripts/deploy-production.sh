@@ -24,13 +24,18 @@ git reset --hard "origin/${GIT_BRANCH}"
 
 echo "==> Backend"
 cd be
-npm ci
+# Stale/partial node_modules (e.g. cancelled deploy) breaks @prisma/client postinstall.
+rm -rf node_modules
+npm ci --ignore-scripts
+# Native addons + Prisma client (skip auto postinstall during ci — generate explicitly).
+npm rebuild canvas bcrypt sharp 2>/dev/null || true
 npx prisma generate
 npm run build
 npx prisma migrate deploy
 
 echo "==> Frontend"
 cd ../fe
+rm -rf node_modules
 npm ci
 VITE_API_URL="${VITE_API_URL}" npm run build
 
