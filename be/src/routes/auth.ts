@@ -74,13 +74,50 @@ const sanitizeUser = (user: {
 const refreshTokenHash = (token: string) =>
   sha256Hex(`${env.refreshTokenPepper}:${token}`);
 
+type AuthSession = {
+  accessToken: string;
+  refreshToken: string;
+  user: ReturnType<typeof sanitizeUser>;
+};
+
+/** HttpOnly cookies for web + tokens in JSON for extension / Bearer clients. */
+function sendAuthSession(
+  res: express.Response,
+  session: AuthSession,
+  status = 200,
+) {
+  setAuthCookies(res, {
+    accessToken: session.accessToken,
+    refreshToken: session.refreshToken,
+  });
+  const body = {
+    success: true as const,
+    accessToken: session.accessToken,
+    refreshToken: session.refreshToken,
+    user: session.user,
+  };
+  return status === 201 ? res.status(201).json(body) : res.json(body);
+}
+
+function sendRefreshedTokens(
+  res: express.Response,
+  tokens: Pick<AuthSession, "accessToken" | "refreshToken">,
+) {
+  setAuthCookies(res, tokens);
+  return res.json({
+    success: true,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+  });
+}
+
 async function issueUserSession(user: {
   id: string;
   email: string;
   fullName: string;
   role: JwtRole;
   status: string;
-}) {
+}): Promise<AuthSession> {
   const accessToken = signAccessToken({ sub: user.id, role: user.role });
   const refreshToken = signRefreshToken({ sub: user.id, role: user.role });
   const expiresAt = new Date(Date.now() + parseDurationToMs(env.jwt.refreshTtl));
@@ -253,12 +290,7 @@ authRouter.post("/login", async (req, res, next) => {
       role: user.role,
       status: user.status,
     });
-    setAuthCookies(res, session);
-
-    return res.json({
-      success: true,
-      user: session.user,
-    });
+    return sendAuthSession(res, session);
   } catch (err) {
     next(err);
   }
@@ -344,12 +376,15 @@ authRouter.post("/register", async (req, res, next) => {
       },
     );
 
-    setAuthCookies(res, { accessToken, refreshToken });
-
-    return res.status(201).json({
-      success: true,
-      user: sanitizeUser(user),
-    });
+    return sendAuthSession(
+      res,
+      {
+        accessToken,
+        refreshToken,
+        user: sanitizeUser(user),
+      },
+      201,
+    );
   } catch (err) {
     next(err);
   }
@@ -385,12 +420,10 @@ authRouter.post("/refresh", async (req, res, next) => {
       });
     }
 
-    setAuthCookies(res, {
+    return sendRefreshedTokens(res, {
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
     });
-
-    return res.json({ success: true });
   } catch (err) {
     next(err);
   }
@@ -538,8 +571,7 @@ authRouter.post(
         role: user.role,
         status: user.status,
       });
-      setAuthCookies(res, session);
-      return res.json({ success: true, user: session.user });
+      return sendAuthSession(res, session);
     } catch (err) {
       next(err);
     }

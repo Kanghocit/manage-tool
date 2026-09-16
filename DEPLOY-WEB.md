@@ -73,7 +73,7 @@ AUTH_COOKIE_SECURE=true
 CORS_ORIGINS=https://ankhang.name.vn,chrome-extension://YOUR_EXTENSION_ID
 ```
 
-Web app dùng cookie tự gửi (`withCredentials`); extension/API client vẫn có thể dùng `Authorization: Bearer`.
+Web app dùng cookie tự gửi (`withCredentials`); extension đọc `accessToken` / `refreshToken` từ JSON response login/refresh và gửi `Authorization: Bearer`.
 
 > `.env` nằm tại **`be/.env`**, không phải file `.env` rỗng ở root repo.
 
