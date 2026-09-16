@@ -48,10 +48,30 @@ export type CaseStudyAttemptState = {
   >;
 };
 
+export type CaseStudyBookletPage = {
+  pageIndex: number;
+  questionFrom: number;
+  questionTo: number;
+  url: string;
+};
+
+export type CaseStudyBookletPageInput = {
+  pageIndex: number;
+  questionFrom: number;
+  questionTo: number;
+};
+
+export type CaseStudyParsePdfsResult = {
+  preview: CaseStudyParsePreview;
+  sessionId: string;
+  bookletPages: Array<{ pageIndex: number; url: string }>;
+};
+
 export type CaseStudySetDetail = {
   set: CaseStudySetSummary;
   passages: CaseStudyPassage[];
   questions: CaseStudyQuestion[];
+  bookletPages: CaseStudyBookletPage[];
   attempt: CaseStudyAttemptState | null;
 };
 
@@ -59,6 +79,7 @@ export type CaseStudyManageDetail = {
   set: CaseStudySetSummary;
   passages: CaseStudyPassage[];
   questions: CaseStudyQuestionManage[];
+  bookletPages: CaseStudyBookletPage[];
 };
 
 export type CaseStudyParsePreview = {

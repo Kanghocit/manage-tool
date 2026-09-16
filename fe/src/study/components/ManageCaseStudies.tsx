@@ -1,8 +1,8 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { App as AntApp, Empty, Modal, Spin, Tag, Upload, message } from "antd";
+import { App as AntApp, Button, Empty, Modal, Spin, Tag, Upload, message } from "antd";
 import {
   DeleteOutlined,
   EditOutlined,
@@ -15,7 +15,7 @@ import {
   createCaseStudySet,
   deleteCaseStudySet,
   fetchManageCaseSets,
-  parseCaseStudyPdf,
+  parseCaseStudyPdfs,
 } from "../lib/caseStudyApi";
 import type { CaseStudyParsePreview } from "../lib/caseStudyTypes";
 import { studyKeys } from "../lib/queryKeys";
@@ -28,10 +28,15 @@ export function CaseStudyManageTab() {
   const { modal } = AntApp.useApp();
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
+  const [bookletFile, setBookletFile] = useState<File | null>(null);
+  const [keyFile, setKeyFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<CaseStudyParsePreview | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [bookletPages, setBookletPages] = useState<Array<{ pageIndex: number; url: string }>>(
+    [],
+  );
   const [reviewOpen, setReviewOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const fileRef = useRef<File | null>(null);
 
   const { data: sets = [], isLoading } = useQuery({
     queryKey: studyKeys.manageCaseSets,
@@ -41,24 +46,38 @@ export function CaseStudyManageTab() {
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: studyKeys.manageCaseSets });
 
-  const handleUpload = async (file: File) => {
+  const handleAnalyze = async () => {
+    if (!bookletFile || !keyFile) {
+      message.warning("Chọn cả file đề gốc và file KEY");
+      return;
+    }
     setUploading(true);
-    fileRef.current = file;
     try {
-      const result = await parseCaseStudyPdf(file);
-      setPreview(result);
+      const result = await parseCaseStudyPdfs(bookletFile, keyFile);
+      setPreview(result.preview);
+      setSessionId(result.sessionId);
+      setBookletPages(result.bookletPages);
       setReviewOpen(true);
-      if (result.warnings.length) {
-        message.warning(`${result.warnings.length} cảnh báo khi parse PDF`);
+      if (result.preview.warnings.length) {
+        message.warning(`${result.preview.warnings.length} cảnh báo khi parse KEY`);
       } else {
-        message.success(`Đã trích ${result.questions.length} câu hỏi`);
+        message.success(
+          `Đã trích ${result.preview.questions.length} câu · ${result.bookletPages.length} trang ảnh`,
+        );
       }
     } catch {
       message.error("Không parse được PDF");
     } finally {
       setUploading(false);
     }
-    return false;
+  };
+
+  const resetImport = () => {
+    setPreview(null);
+    setSessionId(null);
+    setBookletPages([]);
+    setBookletFile(null);
+    setKeyFile(null);
   };
 
   const handleSave = async (
@@ -66,6 +85,8 @@ export function CaseStudyManageTab() {
       title: string;
       description: string;
       status: "draft" | "published";
+      sessionId?: string;
+      bookletPages?: Array<{ pageIndex: number; questionFrom: number; questionTo: number }>;
     },
   ) => {
     setSaving(true);
@@ -76,11 +97,12 @@ export function CaseStudyManageTab() {
         status: payload.status,
         passages: payload.passages,
         questions: payload.questions,
+        sessionId: payload.sessionId,
+        bookletPages: payload.bookletPages,
       });
       message.success("Đã lưu bộ đề");
       setReviewOpen(false);
-      setPreview(null);
-      fileRef.current = null;
+      resetImport();
       await refresh();
       await queryClient.invalidateQueries({ queryKey: studyKeys.caseSets });
     } catch {
@@ -116,25 +138,56 @@ export function CaseStudyManageTab() {
 
   return (
     <>
-      <Upload.Dragger
-        accept=".pdf,application/pdf"
-        showUploadList={false}
-        beforeUpload={(file) => {
-          void handleUpload(file);
-          return false;
-        }}
-        className="mb-5 rounded-2xl!"
-        disabled={uploading}
-      >
-        <p className="ant-upload-drag-icon">
-          <UploadOutlined className="text-indigo-500!" />
-        </p>
-        <p className="ant-upload-text">Kéo thả hoặc bấm để chọn file PDF KEY</p>
-        <p className="ant-upload-hint">
-          Hỗ trợ Part 5, 6, 7 · file nén ~2MB vẫn parse được
-        </p>
-        {uploading && <Spin className="mt-3" />}
-      </Upload.Dragger>
+      <div className="mb-5 grid gap-4 md:grid-cols-2">
+        <Upload.Dragger
+          accept=".pdf,application/pdf"
+          showUploadList={false}
+          beforeUpload={(file) => {
+            setBookletFile(file);
+            return false;
+          }}
+          className="rounded-2xl!"
+          disabled={uploading}
+        >
+          <p className="ant-upload-drag-icon">
+            <FilePdfOutlined className="text-slate-500!" />
+          </p>
+          <p className="ant-upload-text">File đề gốc (bộ đề scan)</p>
+          <p className="ant-upload-hint">
+            {bookletFile ? bookletFile.name : "PDF đề tiếng Anh — hiển thị dạng ảnh trang"}
+          </p>
+        </Upload.Dragger>
+
+        <Upload.Dragger
+          accept=".pdf,application/pdf"
+          showUploadList={false}
+          beforeUpload={(file) => {
+            setKeyFile(file);
+            return false;
+          }}
+          className="rounded-2xl!"
+          disabled={uploading}
+        >
+          <p className="ant-upload-drag-icon">
+            <UploadOutlined className="text-indigo-500!" />
+          </p>
+          <p className="ant-upload-text">File KEY (đáp án + giải thích)</p>
+          <p className="ant-upload-hint">
+            {keyFile ? keyFile.name : "PDF KEY Part 5–7 · đáp án và chữa tiếng Việt"}
+          </p>
+        </Upload.Dragger>
+      </div>
+
+      <div className="mb-5 flex justify-end">
+        <Button
+          type="primary"
+          loading={uploading}
+          disabled={!bookletFile || !keyFile}
+          onClick={() => void handleAnalyze()}
+        >
+          Phân tích 2 file
+        </Button>
+      </div>
 
       {sets.length === 0 ? (
         <Empty
@@ -212,6 +265,8 @@ export function CaseStudyManageTab() {
         {preview && (
           <CaseStudyImportReview
             preview={preview}
+            sessionId={sessionId ?? undefined}
+            initialBookletPages={bookletPages}
             saving={saving}
             onCancel={() => setReviewOpen(false)}
             onSave={handleSave}

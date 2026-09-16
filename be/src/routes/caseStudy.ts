@@ -1,6 +1,10 @@
+import { randomUUID } from 'crypto'
+
 import express from 'express'
 import { z } from 'zod'
 
+import { rasterizeBookletPdf } from '../lib/caseStudyBookletRasterizer'
+import { parseCaseStudyPdf } from '../lib/caseStudyParser'
 import {
   checkCaseQuestion,
   createCaseSetFromPreview,
@@ -9,12 +13,15 @@ import {
   getCaseSetForPractice,
   listManageCaseSets,
   listPublishedCaseSets,
+  readImportPreviewPage,
+  readManageSetPage,
+  readPracticeSetPage,
   updateCaseAttemptProgress,
   updateCaseSet,
 } from '../lib/caseStudyService'
-import { parseCaseStudyPdf } from '../lib/caseStudyParser'
+import { cleanupExpiredImportSessions } from '../lib/caseStudyStorage'
 import { requireRole } from '../middleware/auth'
-import { pdfUpload } from '../middleware/upload'
+import { pdfFieldsUpload, pdfUpload } from '../middleware/upload'
 
 export const caseStudyRouter = express.Router()
 
@@ -23,6 +30,14 @@ const adminOnly = [requireRole('admin')]
 function routeParam(value: string | string[]): string {
   return Array.isArray(value) ? value[0] : value
 }
+
+function parsePageIndex(raw: string): number | null {
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 0) return null
+  return n
+}
+
+void cleanupExpiredImportSessions()
 
 caseStudyRouter.get('/cases', async (_req, res, next) => {
   try {
@@ -40,6 +55,24 @@ caseStudyRouter.get('/cases/:setId', async (req, res, next) => {
       return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'Case set not found.' })
     }
     res.json({ success: true, data })
+  } catch (err) {
+    next(err)
+  }
+})
+
+caseStudyRouter.get('/cases/:setId/pages/:pageIndex', async (req, res, next) => {
+  try {
+    const pageIndex = parsePageIndex(routeParam(req.params.pageIndex))
+    if (pageIndex === null) {
+      return res.status(400).json({ success: false, code: 'VALIDATION_ERROR', message: 'Invalid page index.' })
+    }
+    const file = await readPracticeSetPage(routeParam(req.params.setId), pageIndex)
+    if (!file) {
+      return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'Page not found.' })
+    }
+    res.setHeader('Content-Type', file.mimeType)
+    res.setHeader('Cache-Control', 'private, max-age=3600')
+    res.send(file.buffer)
   } catch (err) {
     next(err)
   }
@@ -102,6 +135,28 @@ caseStudyRouter.get('/manage/cases', ...adminOnly, async (_req, res, next) => {
   }
 })
 
+caseStudyRouter.get(
+  '/manage/cases/parse-preview/:sessionId/pages/:pageIndex',
+  ...adminOnly,
+  async (req, res, next) => {
+    try {
+      const pageIndex = parsePageIndex(routeParam(req.params.pageIndex))
+      if (pageIndex === null) {
+        return res.status(400).json({ success: false, code: 'VALIDATION_ERROR', message: 'Invalid page index.' })
+      }
+      const file = await readImportPreviewPage(routeParam(req.params.sessionId), pageIndex)
+      if (!file) {
+        return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'Preview page not found.' })
+      }
+      res.setHeader('Content-Type', file.mimeType)
+      res.setHeader('Cache-Control', 'no-store')
+      res.send(file.buffer)
+    } catch (err) {
+      next(err)
+    }
+  },
+)
+
 caseStudyRouter.get('/manage/cases/:setId', ...adminOnly, async (req, res, next) => {
   try {
     const data = await getCaseSetForManage(routeParam(req.params.setId))
@@ -109,6 +164,24 @@ caseStudyRouter.get('/manage/cases/:setId', ...adminOnly, async (req, res, next)
       return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'Case set not found.' })
     }
     res.json({ success: true, data })
+  } catch (err) {
+    next(err)
+  }
+})
+
+caseStudyRouter.get('/manage/cases/:setId/pages/:pageIndex', ...adminOnly, async (req, res, next) => {
+  try {
+    const pageIndex = parsePageIndex(routeParam(req.params.pageIndex))
+    if (pageIndex === null) {
+      return res.status(400).json({ success: false, code: 'VALIDATION_ERROR', message: 'Invalid page index.' })
+    }
+    const file = await readManageSetPage(routeParam(req.params.setId), pageIndex)
+    if (!file) {
+      return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'Page not found.' })
+    }
+    res.setHeader('Content-Type', file.mimeType)
+    res.setHeader('Cache-Control', 'private, max-age=3600')
+    res.send(file.buffer)
   } catch (err) {
     next(err)
   }
@@ -126,10 +199,70 @@ caseStudyRouter.post('/manage/cases/parse-pdf', ...adminOnly, pdfUpload.single('
   }
 })
 
+caseStudyRouter.post(
+  '/manage/cases/parse-pdfs',
+  ...adminOnly,
+  pdfFieldsUpload,
+  async (req, res, next) => {
+    try {
+      const files = req.files as
+        | {
+            booklet?: Express.Multer.File[]
+            key?: Express.Multer.File[]
+          }
+        | undefined
+
+      const bookletFile = files?.booklet?.[0]
+      const keyFile = files?.key?.[0]
+
+      if (!bookletFile?.buffer) {
+        return res.status(400).json({
+          success: false,
+          code: 'VALIDATION_ERROR',
+          message: 'Booklet PDF required.',
+        })
+      }
+      if (!keyFile?.buffer) {
+        return res.status(400).json({
+          success: false,
+          code: 'VALIDATION_ERROR',
+          message: 'KEY PDF required.',
+        })
+      }
+
+      const sessionId = randomUUID()
+      const [preview, rasterized] = await Promise.all([
+        parseCaseStudyPdf(keyFile.buffer),
+        rasterizeBookletPdf(bookletFile.buffer, sessionId),
+      ])
+
+      res.json({
+        success: true,
+        preview,
+        sessionId,
+        bookletPages: rasterized.map((page) => ({
+          pageIndex: page.pageIndex,
+          url: `/api/study/manage/cases/parse-preview/${sessionId}/pages/${page.pageIndex}`,
+        })),
+      })
+    } catch (err) {
+      next(err)
+    }
+  },
+)
+
+const bookletPageSchema = z.object({
+  pageIndex: z.number().int().min(0),
+  questionFrom: z.number().int().min(0).max(999),
+  questionTo: z.number().int().min(0).max(999),
+})
+
 const saveSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
   status: z.enum(['draft', 'published']).optional(),
+  sessionId: z.string().uuid().optional(),
+  bookletPages: z.array(bookletPageSchema).optional(),
   passages: z.array(
     z.object({
       part: z.union([z.literal(6), z.literal(7)]),

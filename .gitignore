@@ -28,6 +28,10 @@ be/bun.lockb
 # Prisma
 be/prisma/migrations/dev.db*
 
+# Case Study uploaded booklet images
+be/data/case-study/
+be/tmp/case-import/
+
 # Logs
 *.log
 npm-debug.log*

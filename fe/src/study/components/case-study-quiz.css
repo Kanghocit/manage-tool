@@ -94,6 +94,49 @@
   margin: 0 auto;
 }
 
+.case-quiz-body--split {
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (min-width: 900px) {
+  .case-quiz-body--split {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 24px;
+  }
+
+  .case-quiz-booklet-panel {
+    flex: 1.1;
+    min-width: 0;
+    position: sticky;
+    top: 12px;
+    max-height: calc(100dvh - 140px);
+    overflow: auto;
+  }
+
+  .case-quiz-answer-panel {
+    flex: 0.9;
+    min-width: 320px;
+  }
+}
+
+.case-quiz-booklet-panel {
+  margin-bottom: 4px;
+}
+
+.case-quiz-booklet-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--cq-border);
+  background: #fff;
+}
+
 .case-quiz-section-title {
   font-size: 13px;
   color: var(--cq-muted);

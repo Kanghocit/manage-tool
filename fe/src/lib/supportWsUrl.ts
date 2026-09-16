@@ -1,9 +1,16 @@
-export function getSupportWebSocketUrl(accessToken: string): string {
-  const apiBase = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
-  const url = new URL(apiBase);
+function resolveWebSocketBase(): string {
+  const configured = import.meta.env.VITE_API_URL;
+  if (configured) return configured;
+  if (import.meta.env.DEV && typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  return "http://localhost:4000";
+}
+
+export function getSupportWebSocketUrl(): string {
+  const url = new URL(resolveWebSocketBase());
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   url.pathname = "/ws/support";
   url.search = "";
-  url.searchParams.set("token", accessToken);
   return url.toString();
 }

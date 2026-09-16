@@ -12,7 +12,7 @@ export function ExtensionHandoffPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const setSession = useAuthStore((state) => state.setSession);
+  const setUser = useAuthStore((state) => state.setUser);
   const startedRef = useRef(false);
 
   const code = searchParams.get("code");
@@ -22,8 +22,6 @@ export function ExtensionHandoffPage() {
     mutationFn: async (handoffCode: string) => {
       const { data } = await api.post<{
         success: boolean;
-        accessToken: string;
-        refreshToken: string;
         user: {
           id: string;
           email: string;
@@ -35,7 +33,7 @@ export function ExtensionHandoffPage() {
       return data;
     },
     onSuccess: (data) => {
-      setSession(data.user, data.accessToken, data.refreshToken);
+      setUser(data.user);
       navigate(redirectTo, { replace: true });
     },
     onError: () => {

@@ -19,7 +19,7 @@ function authErrorMessage(err: unknown): string {
 export function RegisterPage() {
   const navigate = useNavigate();
   const { message } = AntApp.useApp();
-  const setSession = useAuthStore((state) => state.setSession);
+  const setUser = useAuthStore((state) => state.setUser);
   const { t } = useTranslation();
   const [form] = Form.useForm<{ fullName: string; email: string; password: string }>();
 
@@ -28,10 +28,8 @@ export function RegisterPage() {
       api.post("/api/auth/register", values).then((res) => res.data),
     onSuccess: (data: {
       user: { id: string; email: string; fullName: string; role: "admin" | "user"; status: "active" | "blocked" };
-      accessToken: string;
-      refreshToken: string;
     }) => {
-      setSession(data.user, data.accessToken, data.refreshToken);
+      setUser(data.user);
       message.success(t("auth.registerSuccess"));
       navigate(data.user.role === "admin" ? "/dashboard" : "/my-license", {
         replace: true,

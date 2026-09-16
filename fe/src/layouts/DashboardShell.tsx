@@ -25,6 +25,7 @@ import { useTranslation } from "react-i18next";
 
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import type { MenuKey, NavRoute } from "../types/nav";
+import { api } from "../lib/api";
 import { useAuthStore } from "../store/useAuthStore";
 import { StudyRoutes } from "../study/StudyRoutes";
 
@@ -191,8 +192,15 @@ export function DashboardShell() {
             danger
             icon={<LogoutOutlined />}
             onClick={() => {
-              logout();
-              navigate("/login", { replace: true });
+              void (async () => {
+                try {
+                  await api.post("/api/auth/logout");
+                } catch {
+                  // ignore network errors; still clear local session
+                }
+                logout();
+                navigate("/login", { replace: true });
+              })();
             }}
           >
             {t("common.logout")}

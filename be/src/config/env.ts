@@ -29,6 +29,15 @@ export const env = {
     .map((item) => item.trim())
     .filter(Boolean),
 
+  authCookies: {
+    domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
+    secure:
+      (process.env.AUTH_COOKIE_SECURE ??
+        ((process.env.NODE_ENV ?? 'development') === 'production' ? 'true' : 'false')) ===
+      'true',
+    sameSite: 'lax' as const,
+  },
+
   allowRegister: (process.env.ALLOW_REGISTER ?? 'false').toLowerCase() === 'true',
 
   /** Public app URL for links in emails */
@@ -75,6 +84,11 @@ export const env = {
     botToken: process.env.TELEGRAM_BOT_TOKEN ?? '',
     chatId: process.env.TELEGRAM_CHAT_ID ?? '',
   },
+
+  /** Case Study booklet page images (JPEG) — not committed to git */
+  caseStudyUploadDir: process.env.CASE_STUDY_UPLOAD_DIR ?? 'data/case-study',
+  caseStudyImportTmpDir: process.env.CASE_STUDY_IMPORT_TMP_DIR ?? 'tmp/case-import',
+  caseStudyImportTtlMs: Number(process.env.CASE_STUDY_IMPORT_TTL_MS ?? 2 * 60 * 60 * 1000),
 
 }
 

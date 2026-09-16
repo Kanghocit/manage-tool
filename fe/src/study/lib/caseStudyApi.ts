@@ -1,7 +1,9 @@
 import { api } from "../../lib/api";
 import type {
+  CaseStudyBookletPageInput,
   CaseStudyManageDetail,
   CaseStudyParsePreview,
+  CaseStudyParsePdfsResult,
   CaseStudySetDetail,
   CaseStudySetSummary,
 } from "./caseStudyTypes";
@@ -70,10 +72,24 @@ export async function parseCaseStudyPdf(file: File) {
   return res.data.preview;
 }
 
+export async function parseCaseStudyPdfs(booklet: File, key: File) {
+  const form = new FormData();
+  form.append("booklet", booklet);
+  form.append("key", key);
+  const res = await api.post<{ success: boolean } & CaseStudyParsePdfsResult>(
+    "/api/study/manage/cases/parse-pdfs",
+    form,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return res.data;
+}
+
 export async function createCaseStudySet(payload: {
   title: string;
   description?: string;
   status?: "draft" | "published";
+  sessionId?: string;
+  bookletPages?: CaseStudyBookletPageInput[];
   passages: CaseStudyParsePreview["passages"];
   questions: CaseStudyParsePreview["questions"];
 }) {

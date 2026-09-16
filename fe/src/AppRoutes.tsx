@@ -24,12 +24,12 @@ function RegisterRoute() {
 }
 
 export function AppRoutes() {
-  const hydrate = useAuthStore((state) => state.hydrate);
+  const bootstrapSession = useAuthStore((state) => state.bootstrapSession);
   const { i18n } = useTranslation();
 
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    void bootstrapSession();
+  }, [bootstrapSession]);
 
   useEffect(() => {
     dayjs.locale(i18n.language === "vi" ? "vi" : "en");

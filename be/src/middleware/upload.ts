@@ -21,17 +21,28 @@ export const excelUpload = multer({
   },
 })
 
+const pdfFileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
+  const ok =
+    file.mimetype === 'application/pdf' ||
+    file.originalname.toLowerCase().endsWith('.pdf')
+  if (!ok) {
+    cb(new Error('Only PDF files are allowed.'))
+    return
+  }
+  cb(null, true)
+}
+
 export const pdfUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_PDF_SIZE },
-  fileFilter: (_req, file, cb) => {
-    const ok =
-      file.mimetype === 'application/pdf' ||
-      file.originalname.toLowerCase().endsWith('.pdf')
-    if (!ok) {
-      cb(new Error('Only PDF files are allowed.'))
-      return
-    }
-    cb(null, true)
-  },
+  fileFilter: pdfFileFilter,
 })
+
+export const pdfFieldsUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_PDF_SIZE },
+  fileFilter: pdfFileFilter,
+}).fields([
+  { name: 'booklet', maxCount: 1 },
+  { name: 'key', maxCount: 1 },
+])

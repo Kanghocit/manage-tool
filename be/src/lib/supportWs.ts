@@ -1,6 +1,7 @@
 import type { Server } from "http";
 import { WebSocket, WebSocketServer } from "ws";
 
+import { getAccessTokenFromCookieHeader } from "./authCookies";
 import { verifyAccessToken } from "./jwt";
 import {
   canAccessSupportSession,
@@ -147,7 +148,9 @@ export function attachSupportWebSocket(server: Server) {
     client.isAlive = true;
 
     const url = new URL(req.url ?? "", "http://localhost");
-    const token = url.searchParams.get("token")?.trim();
+    const token =
+      getAccessTokenFromCookieHeader(req.headers.cookie) ??
+      url.searchParams.get("token")?.trim();
     if (!token) {
       sendJson(client, { type: "error", code: "UNAUTHORIZED", message: "Missing token." });
       client.close();

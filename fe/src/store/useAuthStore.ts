@@ -10,64 +10,48 @@ export type AuthUser = {
   status: 'active' | 'blocked'
 }
 
-type StoredSession = {
-  user: AuthUser
-  accessToken: string
-  refreshToken: string
-}
-
 type AuthState = {
   user: AuthUser | null
-  accessToken: string | null
-  refreshToken: string | null
   hasHydrated: boolean
-  setSession: (user: AuthUser, accessToken: string, refreshToken: string) => void
-  setTokens: (accessToken: string, refreshToken: string) => void
+  setUser: (user: AuthUser) => void
   logout: () => void
-  hydrate: () => void
+  bootstrapSession: () => Promise<void>
 }
 
-const STORAGE_KEY = 'license-admin-auth'
-
-function readStoredSession(): StoredSession | null {
-  const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) return null
-
-  try {
-    return JSON.parse(raw) as StoredSession
-  } catch {
-    localStorage.removeItem(STORAGE_KEY)
-    return null
-  }
-}
-
-const initialSession = readStoredSession()
+const LEGACY_STORAGE_KEY = 'license-admin-auth'
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user: initialSession?.user ?? null,
-  accessToken: initialSession?.accessToken ?? null,
-  refreshToken: initialSession?.refreshToken ?? null,
-  hasHydrated: true,
-  setSession: (user, accessToken, refreshToken) => {
-    const payload = { user, accessToken, refreshToken }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
-    set(payload)
-  },
-  setTokens: (accessToken, refreshToken) => {
-    set((state) => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: state.user, accessToken, refreshToken }))
-      return { accessToken, refreshToken }
-    })
-  },
-  logout: () => {
-    localStorage.removeItem(STORAGE_KEY)
-    set({ user: null, accessToken: null, refreshToken: null })
-  },
-  hydrate: () => {
-    const stored = readStoredSession()
-    if (stored) {
-      set(stored)
+  user: null,
+  hasHydrated: false,
+  setUser: (user) => set({ user }),
+  logout: () => set({ user: null }),
+  bootstrapSession: async () => {
+    try {
+      localStorage.removeItem(LEGACY_STORAGE_KEY)
+      const { api } = await import('../lib/api')
+
+      const fetchCurrentUser = async (): Promise<AuthUser | null> => {
+        try {
+          const res = await api.get<{ success: boolean; user: AuthUser }>('/api/auth/me')
+          return res.data.user ?? null
+        } catch {
+          return null
+        }
+      }
+
+      let user = await fetchCurrentUser()
+      if (!user) {
+        try {
+          await api.post('/api/auth/refresh')
+          user = await fetchCurrentUser()
+        } catch {
+          user = null
+        }
+      }
+
+      set({ user, hasHydrated: true })
+    } catch {
+      set({ user: null, hasHydrated: true })
     }
-    set({ hasHydrated: true })
   },
 }))

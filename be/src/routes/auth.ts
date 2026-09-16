@@ -10,6 +10,11 @@ import {
   verifyRefreshToken,
   type JwtRole,
 } from "../lib/jwt";
+import {
+  clearAuthCookies,
+  getRefreshToken,
+  setAuthCookies,
+} from "../lib/authCookies";
 import { env } from "../config/env";
 import { parseDurationToMs } from "../utils/duration";
 import { sha256Hex } from "../utils/crypto";
@@ -36,11 +41,11 @@ const registerSchema = z.object({
 });
 
 const refreshSchema = z.object({
-  refreshToken: z.string().min(10),
+  refreshToken: z.string().min(10).optional(),
 });
 
 const logoutSchema = z.object({
-  refreshToken: z.string().min(10),
+  refreshToken: z.string().min(10).optional(),
 });
 
 const changePasswordSchema = z.object({
@@ -95,6 +100,51 @@ async function issueUserSession(user: {
   };
 }
 
+async function rotateRefreshSession(refreshToken: string) {
+  const payload = verifyRefreshToken(refreshToken);
+  const hash = refreshTokenHash(refreshToken);
+
+  const record = await prisma.refreshToken.findUnique({
+    where: { tokenHash: hash },
+  });
+  if (!record || record.revokedAt) {
+    return { error: "UNAUTHORIZED" as const, message: "Refresh token is invalid." };
+  }
+  if (record.expiresAt.getTime() <= Date.now()) {
+    return { error: "UNAUTHORIZED" as const, message: "Refresh token expired." };
+  }
+  if (record.userId !== payload.sub) {
+    return { error: "UNAUTHORIZED" as const, message: "Refresh token is invalid." };
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+  if (!user || user.status !== "active") {
+    return { error: "USER_BLOCKED" as const, message: "User is blocked." };
+  }
+
+  await prisma.refreshToken.update({
+    where: { tokenHash: hash },
+    data: { revokedAt: new Date() },
+  });
+
+  const accessToken = signAccessToken({ sub: user.id, role: user.role });
+  const newRefreshToken = signRefreshToken({ sub: user.id, role: user.role });
+  const expiresAt = new Date(Date.now() + parseDurationToMs(env.jwt.refreshTtl));
+  await prisma.refreshToken.create({
+    data: {
+      userId: user.id,
+      tokenHash: refreshTokenHash(newRefreshToken),
+      expiresAt,
+    },
+  });
+
+  return {
+    accessToken,
+    refreshToken: newRefreshToken,
+    user: sanitizeUser(user),
+  };
+}
+
 export const authRouter = express.Router();
 
 authRouter.use(
@@ -106,6 +156,30 @@ authRouter.use(
     legacyHeaders: false,
   }),
 );
+
+authRouter.get("/me", requireAuth, async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        code: "USER_NOT_FOUND",
+        message: "User not found.",
+      });
+    }
+    if (user.status !== "active") {
+      return res.status(403).json({
+        success: false,
+        code: "USER_BLOCKED",
+        message: "User is blocked.",
+      });
+    }
+
+    return res.json({ success: true, user: sanitizeUser(user) });
+  } catch (err) {
+    next(err);
+  }
+});
 
 authRouter.post("/login", async (req, res, next) => {
   try {
@@ -172,25 +246,18 @@ authRouter.post("/login", async (req, res, next) => {
       }
     }
 
-    const accessToken = signAccessToken({ sub: user.id, role: user.role });
-    const refreshToken = signRefreshToken({ sub: user.id, role: user.role });
-
-    const expiresAt = new Date(
-      Date.now() + parseDurationToMs(env.jwt.refreshTtl),
-    );
-    await prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        tokenHash: refreshTokenHash(refreshToken),
-        expiresAt,
-      },
+    const session = await issueUserSession({
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+      status: user.status,
     });
+    setAuthCookies(res, session);
 
     return res.json({
       success: true,
-      accessToken,
-      refreshToken,
-      user: sanitizeUser(user),
+      user: session.user,
     });
   } catch (err) {
     next(err);
@@ -277,10 +344,10 @@ authRouter.post("/register", async (req, res, next) => {
       },
     );
 
+    setAuthCookies(res, { accessToken, refreshToken });
+
     return res.status(201).json({
       success: true,
-      accessToken,
-      refreshToken,
       user: sanitizeUser(user),
     });
   } catch (err) {
@@ -290,7 +357,7 @@ authRouter.post("/register", async (req, res, next) => {
 
 authRouter.post("/refresh", async (req, res, next) => {
   try {
-    const parsed = refreshSchema.safeParse(req.body);
+    const parsed = refreshSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
       return res.status(400).json({
         success: false,
@@ -299,68 +366,31 @@ authRouter.post("/refresh", async (req, res, next) => {
       });
     }
 
-    const { refreshToken } = parsed.data;
-    const payload = verifyRefreshToken(refreshToken);
-    const hash = refreshTokenHash(refreshToken);
-
-    const record = await prisma.refreshToken.findUnique({
-      where: { tokenHash: hash },
-    });
-    if (!record || record.revokedAt) {
+    const refreshToken = getRefreshToken(req);
+    if (!refreshToken) {
       return res.status(401).json({
         success: false,
         code: "UNAUTHORIZED",
-        message: "Refresh token is invalid.",
-      });
-    }
-    if (record.expiresAt.getTime() <= Date.now()) {
-      return res.status(401).json({
-        success: false,
-        code: "UNAUTHORIZED",
-        message: "Refresh token expired.",
-      });
-    }
-    if (record.userId !== payload.sub) {
-      return res.status(401).json({
-        success: false,
-        code: "UNAUTHORIZED",
-        message: "Refresh token is invalid.",
+        message: "Refresh token is missing.",
       });
     }
 
-    const user = await prisma.user.findUnique({ where: { id: payload.sub } });
-    if (!user || user.status !== "active") {
-      return res.status(403).json({
+    const result = await rotateRefreshSession(refreshToken);
+    if ("error" in result) {
+      const status = result.error === "USER_BLOCKED" ? 403 : 401;
+      return res.status(status).json({
         success: false,
-        code: "USER_BLOCKED",
-        message: "User is blocked.",
+        code: result.error,
+        message: result.message,
       });
     }
 
-    // rotate
-    await prisma.refreshToken.update({
-      where: { tokenHash: hash },
-      data: { revokedAt: new Date() },
+    setAuthCookies(res, {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
     });
 
-    const newAccessToken = signAccessToken({ sub: user.id, role: user.role });
-    const newRefreshToken = signRefreshToken({ sub: user.id, role: user.role });
-    const expiresAt = new Date(
-      Date.now() + parseDurationToMs(env.jwt.refreshTtl),
-    );
-    await prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        tokenHash: refreshTokenHash(newRefreshToken),
-        expiresAt,
-      },
-    });
-
-    return res.json({
-      success: true,
-      accessToken: newAccessToken,
-      refreshToken: newRefreshToken,
-    });
+    return res.json({ success: true });
   } catch (err) {
     next(err);
   }
@@ -368,7 +398,7 @@ authRouter.post("/refresh", async (req, res, next) => {
 
 authRouter.post("/logout", async (req, res, next) => {
   try {
-    const parsed = logoutSchema.safeParse(req.body);
+    const parsed = logoutSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
       return res.status(400).json({
         success: false,
@@ -377,12 +407,16 @@ authRouter.post("/logout", async (req, res, next) => {
       });
     }
 
-    const hash = refreshTokenHash(parsed.data.refreshToken);
-    await prisma.refreshToken.updateMany({
-      where: { tokenHash: hash, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
+    const refreshToken = getRefreshToken(req);
+    if (refreshToken) {
+      const hash = refreshTokenHash(refreshToken);
+      await prisma.refreshToken.updateMany({
+        where: { tokenHash: hash, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    }
 
+    clearAuthCookies(res);
     return res.json({ success: true });
   } catch (err) {
     next(err);
@@ -440,6 +474,7 @@ authRouter.post("/change-password", requireAuth, async (req, res, next) => {
       data: { revokedAt: new Date() },
     });
 
+    clearAuthCookies(res);
     return res.json({ success: true, message: "Password changed." });
   } catch (err) {
     next(err);
@@ -503,7 +538,8 @@ authRouter.post(
         role: user.role,
         status: user.status,
       });
-      return res.json({ success: true, ...session });
+      setAuthCookies(res, session);
+      return res.json({ success: true, user: session.user });
     } catch (err) {
       next(err);
     }

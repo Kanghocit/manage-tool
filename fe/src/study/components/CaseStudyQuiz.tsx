@@ -9,8 +9,9 @@ import {
   fetchCaseStudySet,
   updateCaseProgress,
 } from "../lib/caseStudyApi";
-import { PART_LABELS, type CaseStudyPart } from "../lib/caseStudyTypes";
+import { PART_LABELS, type CaseStudyBookletPage, type CaseStudyPart } from "../lib/caseStudyTypes";
 import type { CaseStudyQuestion } from "../lib/caseStudyTypes";
+import { bookletPagesForQuestion } from "../lib/caseStudyUtils";
 import { studyKeys } from "../lib/queryKeys";
 import "./case-study-quiz.css";
 
@@ -35,6 +36,7 @@ type QuizSessionProps = {
   partFilter: CaseStudyPart | null;
   questions: CaseStudyQuestion[];
   passages: { id: string; contentEn: string; label: string }[];
+  bookletPages: CaseStudyBookletPage[];
   initialAnswers: Record<string, AnswerState>;
   initialIndex: number;
 };
@@ -44,6 +46,7 @@ function QuizSession({
   partFilter,
   questions,
   passages,
+  bookletPages,
   initialAnswers,
   initialIndex,
 }: QuizSessionProps) {
@@ -61,6 +64,13 @@ function QuizSession({
     if (!current?.passageId) return null;
     return passages.find((p) => p.id === current.passageId) ?? null;
   }, [current, passages]);
+
+  const currentBookletPages = useMemo(() => {
+    if (!current || bookletPages.length === 0) return [];
+    return bookletPagesForQuestion(bookletPages, current.number);
+  }, [bookletPages, current]);
+
+  const useBookletImages = currentBookletPages.length > 0;
 
   const persistProgress = async (nextIndex: number, completed?: boolean) => {
     if (partFilter) return;
@@ -168,72 +178,90 @@ function QuizSession({
         </div>
       </header>
 
-      <main className="case-quiz-body">
-        {passage?.contentEn?.trim() && (
-          <>
-            <div className="case-quiz-section-title">Reading</div>
-            <div className="case-quiz-passage">{passage.contentEn}</div>
-          </>
+      <main
+        className={`case-quiz-body${useBookletImages ? " case-quiz-body--split" : ""}`}
+      >
+        {useBookletImages ? (
+          <div className="case-quiz-booklet-panel">
+            <div className="case-quiz-section-title">Đề gốc</div>
+            {currentBookletPages.map((page) => (
+              <img
+                key={page.pageIndex}
+                src={page.url}
+                alt={`Trang đề ${page.pageIndex + 1}`}
+                className="case-quiz-booklet-img"
+              />
+            ))}
+          </div>
+        ) : (
+          passage?.contentEn?.trim() && (
+            <>
+              <div className="case-quiz-section-title">Reading</div>
+              <div className="case-quiz-passage">{passage.contentEn}</div>
+            </>
+          )
         )}
 
-        <div className="case-quiz-stem">
-          {current.number}. {current.stemEn}
-        </div>
+        <div className="case-quiz-answer-panel">
+          <div className="case-quiz-stem">
+            {current.number}. {current.stemEn}
+          </div>
 
-        <div className="case-quiz-options">
-          {current.options.map((opt) => {
-            const selected = currentAnswer?.chosenKey === opt.key;
-            const showResult = currentAnswer?.checked;
-            const isCorrectKey = showResult && opt.key === currentAnswer.correctKey;
-            const isWrongPick = showResult && selected && !currentAnswer.correct;
+          <div className="case-quiz-options">
+            {current.options.map((opt) => {
+              const selected = currentAnswer?.chosenKey === opt.key;
+              const showResult = currentAnswer?.checked;
+              const isCorrectKey = showResult && opt.key === currentAnswer.correctKey;
+              const isWrongPick = showResult && selected && !currentAnswer.correct;
 
-            let className = "case-quiz-option";
-            if (selected) className += " selected";
-            if (isCorrectKey) className += " correct";
-            if (isWrongPick) className += " wrong";
+              let className = "case-quiz-option";
+              if (selected) className += " selected";
+              if (isCorrectKey) className += " correct";
+              if (isWrongPick) className += " wrong";
 
-            return (
-              <button
-                key={opt.key}
-                type="button"
-                className={className}
-                disabled={currentAnswer?.checked || checking}
-                onClick={() => void handleChoose(opt.key)}
-              >
-                <span className="case-quiz-option-key">{opt.key}.</span>
-                <span>{opt.textEn}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {currentAnswer?.checked && (
-          <>
-            <div
-              className={`case-quiz-feedback ${currentAnswer.correct ? "ok" : "bad"}`}
-            >
-              {currentAnswer.correct
-                ? "Đúng"
-                : `Sai (đáp án đúng: ${currentAnswer.correctKey})`}
-            </div>
-            {currentAnswer.explanationVi && (
-              <>
+              return (
                 <button
+                  key={opt.key}
                   type="button"
-                  className="case-quiz-explain-toggle"
-                  onClick={() =>
-                    setExplainOpenForId((id) => (id === current.id ? null : current.id))
-                  }
+                  className={className}
+                  disabled={currentAnswer?.checked || checking}
+                  onClick={() => void handleChoose(opt.key)}
                 >
-                  {explainOpen ? "▾ Ẩn giải thích" : "▸ Xem giải thích"}
+                  <span className="case-quiz-option-key">{opt.key}.</span>
+                  <span>{opt.textEn}</span>
                 </button>
-                {explainOpen && (
-                  <div className="case-quiz-explain-box">{currentAnswer.explanationVi}</div>
-                )}
-              </>
-            )}
-          </>
-        )}
+              );
+            })}
+          </div>
+
+          {currentAnswer?.checked && (
+            <>
+              <div
+                className={`case-quiz-feedback ${currentAnswer.correct ? "ok" : "bad"}`}
+              >
+                {currentAnswer.correct
+                  ? "Đúng"
+                  : `Sai (đáp án đúng: ${currentAnswer.correctKey})`}
+              </div>
+              {currentAnswer.explanationVi && (
+                <>
+                  <button
+                    type="button"
+                    className="case-quiz-explain-toggle"
+                    onClick={() =>
+                      setExplainOpenForId((id) => (id === current.id ? null : current.id))
+                    }
+                  >
+                    {explainOpen ? "▾ Ẩn giải thích" : "▸ Xem giải thích"}
+                  </button>
+                  {explainOpen && (
+                    <div className="case-quiz-explain-box">{currentAnswer.explanationVi}</div>
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </div>
       </main>
 
       <footer className="case-quiz-footer">
@@ -316,6 +344,7 @@ export function CaseStudyQuiz() {
         contentEn: p.contentEn,
         label: p.label,
       })),
+      bookletPages: data.bookletPages ?? [],
       initialAnswers: restored,
       initialIndex,
     };
@@ -342,6 +371,7 @@ export function CaseStudyQuiz() {
       partFilter={partFilter}
       questions={session.questions}
       passages={session.passages}
+      bookletPages={session.bookletPages}
       initialAnswers={session.initialAnswers}
       initialIndex={session.initialIndex}
     />

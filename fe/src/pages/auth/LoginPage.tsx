@@ -25,7 +25,7 @@ export function LoginPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { message } = AntApp.useApp();
-  const setSession = useAuthStore((state) => state.setSession);
+  const setUser = useAuthStore((state) => state.setUser);
   const { t } = useTranslation();
   const [form] = Form.useForm<{ email: string; password: string }>();
 
@@ -46,10 +46,8 @@ export function LoginPage() {
         role: "admin" | "user";
         status: "active" | "blocked";
       };
-      accessToken: string;
-      refreshToken: string;
     }) => {
-      setSession(data.user, data.accessToken, data.refreshToken);
+      setUser(data.user);
       message.success(t("auth.loginSuccess"));
       navigate(
         data.user.role === "admin" && redirectTo === "/my-license"

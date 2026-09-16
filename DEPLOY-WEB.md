@@ -6,13 +6,13 @@ Tài liệu deploy đầy đủ cho VPS: **Backend (PM2)** + **Frontend (Nginx s
 
 ## 1. Kiến trúc production
 
-| Thành phần | Công nghệ | Đường dẫn / ghi chú |
-|------------|-----------|---------------------|
-| **API (BE)** | Node + Express, PM2 | `/var/www/manage-tool/be/dist/server.js` |
-| **DB** | PostgreSQL + Prisma | Cấu hình trong `be/.env` |
-| **Web (FE)** | Vite build → file tĩnh | `/var/www/manage-tool/fe/dist` |
-| **Nginx** | Serve FE, proxy API | Domain web + `api.*` |
-| **CI/CD** | GitHub Actions | Push nhánh `production` |
+| Thành phần   | Công nghệ              | Đường dẫn / ghi chú                      |
+| ------------ | ---------------------- | ---------------------------------------- |
+| **API (BE)** | Node + Express, PM2    | `/var/www/manage-tool/be/dist/server.js` |
+| **DB**       | PostgreSQL + Prisma    | Cấu hình trong `be/.env`                 |
+| **Web (FE)** | Vite build → file tĩnh | `/var/www/manage-tool/fe/dist`           |
+| **Nginx**    | Serve FE, proxy API    | Domain web + `api.*`                     |
+| **CI/CD**    | GitHub Actions         | Push nhánh `production`                  |
 
 **Quan trọng:**
 
@@ -23,16 +23,16 @@ Tài liệu deploy đầy đủ cho VPS: **Backend (PM2)** + **Frontend (Nginx s
 
 ## 2. Domain & path chuẩn (môi trường hiện tại)
 
-| Mục | Giá trị |
-|-----|---------|
-| Repo trên VPS | `/var/www/manage-tool` |
-| Nhánh deploy | `production` |
-| Domain web | `https://ankhang.name.vn` |
-| Domain API | `https://api.ankhang.name.vn` |
-| Build FE env | `VITE_API_URL=https://api.ankhang.name.vn` |
-| File Nginx site | `/etc/nginx/sites-available/ankhang.name.vn` |
-| `root` FE (đúng) | `/var/www/manage-tool/fe/dist` |
-| PM2 app name | `manage-tool-api` (mặc định) |
+| Mục              | Giá trị                                      |
+| ---------------- | -------------------------------------------- |
+| Repo trên VPS    | `/var/www/manage-tool`                       |
+| Nhánh deploy     | `production`                                 |
+| Domain web       | `https://ankhang.name.vn`                    |
+| Domain API       | `https://api.ankhang.name.vn`                |
+| Build FE env     | `VITE_API_URL=https://api.ankhang.name.vn`   |
+| File Nginx site  | `/etc/nginx/sites-available/ankhang.name.vn` |
+| `root` FE (đúng) | `/var/www/manage-tool/fe/dist`               |
+| PM2 app name     | `manage-tool-api` (mặc định)                 |
 
 ---
 
@@ -64,6 +64,16 @@ nano be/.env
 ```
 
 Chỉnh tối thiểu: `DATABASE_URL`, `JWT_*`, `CORS_ORIGINS`, `SEPAY_*`, port API (mặc định 4000), v.v.
+
+**Auth cookies (HttpOnly JWT):** khi FE (`ankhang.name.vn`) và API (`api.ankhang.name.vn`) khác subdomain, thêm vào `be/.env`:
+
+```
+AUTH_COOKIE_DOMAIN=.ankhang.name.vn
+AUTH_COOKIE_SECURE=true
+CORS_ORIGINS=https://ankhang.name.vn,chrome-extension://YOUR_EXTENSION_ID
+```
+
+Web app dùng cookie tự gửi (`withCredentials`); extension/API client vẫn có thể dùng `Authorization: Bearer`.
 
 > `.env` nằm tại **`be/.env`**, không phải file `.env` rỗng ở root repo.
 
@@ -152,15 +162,15 @@ Trên máy local hoặc VPS, tạo key deploy (nếu chưa có), thêm public ke
 
 ## 4. GitHub Secrets (Settings → Secrets and variables → Actions)
 
-| Secret | Ví dụ / mô tả |
-|--------|----------------|
-| `SSH_HOST` | IP VPS |
-| `SSH_USER` | `root` hoặc user có quyền git/npm/pm2 |
-| `SSH_PRIVATE_KEY` | Private key SSH |
-| `SSH_PORT` | `22` (tuỳ chọn) |
-| `DEPLOY_PATH` | **`/var/www/manage-tool`** |
-| `VITE_API_URL` | **`https://api.ankhang.name.vn`** |
-| `PM2_APP_NAME` | `manage-tool-api` (tuỳ chọn) |
+| Secret            | Ví dụ / mô tả                         |
+| ----------------- | ------------------------------------- |
+| `SSH_HOST`        | IP VPS                                |
+| `SSH_USER`        | `root` hoặc user có quyền git/npm/pm2 |
+| `SSH_PRIVATE_KEY` | Private key SSH                       |
+| `SSH_PORT`        | `22` (tuỳ chọn)                       |
+| `DEPLOY_PATH`     | **`/var/www/manage-tool`**            |
+| `VITE_API_URL`    | **`https://api.ankhang.name.vn`**     |
+| `PM2_APP_NAME`    | `manage-tool-api` (tuỳ chọn)          |
 
 ---
 
@@ -343,4 +353,4 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ---
 
-*Cập nhật theo VPS `khang-zalo-tool-prd`, repo `Kanghocit/manage-tool`, nhánh `production`.*
+_Cập nhật theo VPS `khang-zalo-tool-prd`, repo `Kanghocit/manage-tool`, nhánh `production`._

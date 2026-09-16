@@ -6,6 +6,13 @@ import type {
   CaseStudyQuestionPreview,
 } from './caseStudyParser'
 import { isMostlyVietnamese } from './caseStudyParser'
+import {
+  deleteSetStorage,
+  moveImportSessionToSet,
+  readPageFile,
+  resolveImportPageFilePath,
+  resolvePageFilePath,
+} from './caseStudyStorage'
 import { prisma } from './prisma'
 
 export type CaseStudyOptionDto = { key: string; textEn: string }
@@ -31,6 +38,19 @@ export type CaseStudyPassageDto = {
   sortOrder: number
 }
 
+export type CaseStudyBookletPageDto = {
+  pageIndex: number
+  questionFrom: number
+  questionTo: number
+  url: string
+}
+
+export type CaseStudyBookletPageInput = {
+  pageIndex: number
+  questionFrom: number
+  questionTo: number
+}
+
 function publicPassageContent(contentEn: string): string {
   return isMostlyVietnamese(contentEn) ? '' : contentEn.trim()
 }
@@ -49,6 +69,7 @@ export type CaseStudySetDetail = {
   set: CaseStudySetListItem
   passages: CaseStudyPassageDto[]
   questions: CaseStudyQuestionPublic[]
+  bookletPages: CaseStudyBookletPageDto[]
   attempt: {
     currentIndex: number
     completed: boolean
@@ -65,6 +86,40 @@ export type CaseStudyManageDetail = {
   set: CaseStudySetListItem
   passages: CaseStudyPassageDto[]
   questions: CaseStudyManageQuestion[]
+  bookletPages: CaseStudyBookletPageDto[]
+}
+
+export function bookletPagesForQuestion(
+  pages: CaseStudyBookletPageDto[],
+  questionNumber: number,
+): CaseStudyBookletPageDto[] {
+  return pages.filter(
+    (p) =>
+      p.questionFrom > 0 &&
+      p.questionTo > 0 &&
+      questionNumber >= p.questionFrom &&
+      questionNumber <= p.questionTo,
+  )
+}
+
+function mapBookletPages(
+  rows: Array<{
+    pageIndex: number
+    questionFrom: number
+    questionTo: number
+    storageKey: string
+  }>,
+  urlBuilder: (pageIndex: number) => string,
+): CaseStudyBookletPageDto[] {
+  return rows
+    .slice()
+    .sort((a, b) => a.pageIndex - b.pageIndex)
+    .map((row) => ({
+      pageIndex: row.pageIndex,
+      questionFrom: row.questionFrom,
+      questionTo: row.questionTo,
+      url: urlBuilder(row.pageIndex),
+    }))
 }
 
 function mapOptions(value: Prisma.JsonValue): CaseStudyOptionDto[] {
@@ -204,6 +259,7 @@ export async function getCaseSetForPractice(userId: string, setId: string): Prom
     include: {
       passages: { orderBy: { sortOrder: 'asc' } },
       questions: { orderBy: { sortOrder: 'asc' } },
+      bookletPages: { orderBy: { pageIndex: 'asc' } },
     },
   })
   if (!row) return null
@@ -241,6 +297,9 @@ export async function getCaseSetForPractice(userId: string, setId: string): Prom
       passageId: q.passageId,
       sortOrder: q.sortOrder,
     })),
+    bookletPages: mapBookletPages(row.bookletPages, (pageIndex) =>
+      `/api/study/cases/${setId}/pages/${pageIndex}`,
+    ),
     attempt: attempt
       ? {
           currentIndex: attempt.currentIndex,
@@ -257,6 +316,7 @@ export async function getCaseSetForManage(setId: string): Promise<CaseStudyManag
     include: {
       passages: { orderBy: { sortOrder: 'asc' } },
       questions: { orderBy: { sortOrder: 'asc' } },
+      bookletPages: { orderBy: { pageIndex: 'asc' } },
     },
   })
   if (!row) return null
@@ -290,7 +350,54 @@ export async function getCaseSetForManage(setId: string): Promise<CaseStudyManag
       correctKey: q.correctKey,
       explanationVi: q.explanationVi,
     })),
+    bookletPages: mapBookletPages(row.bookletPages, (pageIndex) =>
+      `/api/study/manage/cases/${setId}/pages/${pageIndex}`,
+    ),
   }
+}
+
+export async function readPracticeSetPage(
+  setId: string,
+  pageIndex: number,
+): Promise<{ buffer: Buffer; mimeType: string } | null> {
+  const row = await prisma.caseStudyBookletPage.findFirst({
+    where: { setId, pageIndex },
+  })
+  if (!row) return null
+
+  const set = await prisma.caseStudySet.findFirst({
+    where: { id: setId, status: 'published' },
+    select: { id: true },
+  })
+  if (!set) return null
+
+  const buffer = await readPageFile(resolvePageFilePath(setId, row.storageKey))
+  if (!buffer) return null
+  return { buffer, mimeType: row.mimeType }
+}
+
+export async function readManageSetPage(
+  setId: string,
+  pageIndex: number,
+): Promise<{ buffer: Buffer; mimeType: string } | null> {
+  const row = await prisma.caseStudyBookletPage.findFirst({
+    where: { setId, pageIndex },
+  })
+  if (!row) return null
+
+  const buffer = await readPageFile(resolvePageFilePath(setId, row.storageKey))
+  if (!buffer) return null
+  return { buffer, mimeType: row.mimeType }
+}
+
+export async function readImportPreviewPage(
+  sessionId: string,
+  pageIndex: number,
+): Promise<{ buffer: Buffer; mimeType: string } | null> {
+  const storageKey = `page-${String(pageIndex).padStart(3, '0')}.jpg`
+  const buffer = await readPageFile(resolveImportPageFilePath(sessionId, storageKey))
+  if (!buffer) return null
+  return { buffer, mimeType: 'image/jpeg' }
 }
 
 export async function checkCaseQuestion(
@@ -383,6 +490,8 @@ type SaveCaseSetInput = {
   status?: 'draft' | 'published'
   passages: CaseStudyPassagePreview[]
   questions: CaseStudyQuestionPreview[]
+  sessionId?: string
+  bookletPages?: CaseStudyBookletPageInput[]
 }
 
 export async function createCaseSetFromPreview(
@@ -442,6 +551,23 @@ export async function createCaseSetFromPreview(
         sortOrder: i,
       },
     })
+  }
+
+  if (input.sessionId && input.bookletPages?.length) {
+    await moveImportSessionToSet(input.sessionId, set.id)
+    for (const page of input.bookletPages) {
+      const storageKey = `page-${String(page.pageIndex).padStart(3, '0')}.jpg`
+      await prisma.caseStudyBookletPage.create({
+        data: {
+          setId: set.id,
+          pageIndex: page.pageIndex,
+          storageKey,
+          questionFrom: page.questionFrom,
+          questionTo: page.questionTo,
+          mimeType: 'image/jpeg',
+        },
+      })
+    }
   }
 
   return set.id
@@ -553,6 +679,7 @@ export async function updateCaseSet(
 
 export async function deleteCaseSet(setId: string) {
   await prisma.caseStudySet.delete({ where: { id: setId } })
+  await deleteSetStorage(setId)
 }
 
 export function previewToSaveInput(

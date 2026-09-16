@@ -18,7 +18,7 @@ export function useSupportSocket(options: UseSupportSocketOptions = {}) {
     onEventRef.current = onEvent;
   }, [onEvent]);
 
-  const accessToken = useAuthStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.user);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
@@ -37,8 +37,7 @@ export function useSupportSocket(options: UseSupportSocketOptions = {}) {
   const connect = useCallback(async () => {
     if (!enabled || !mountedRef.current) return;
 
-    const token = useAuthStore.getState().accessToken;
-    if (!token) {
+    if (!useAuthStore.getState().user) {
       setConnected(false);
       setConnecting(false);
       return;
@@ -50,7 +49,7 @@ export function useSupportSocket(options: UseSupportSocketOptions = {}) {
     wsRef.current = null;
     setConnecting(true);
 
-    const ws = new WebSocket(getSupportWebSocketUrl(token));
+    const ws = new WebSocket(getSupportWebSocketUrl());
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -69,17 +68,10 @@ export function useSupportSocket(options: UseSupportSocketOptions = {}) {
         }
         if (parsed.type === "error" && parsed.code === "UNAUTHORIZED") {
           void (async () => {
-            const refreshToken = useAuthStore.getState().refreshToken;
-            if (!refreshToken) return;
             try {
-              const res = await api.post("/api/auth/refresh", { refreshToken });
-              const newAccess = res.data?.accessToken as string | undefined;
-              const newRefresh = res.data?.refreshToken as string | undefined;
-              if (newAccess && newRefresh) {
-                useAuthStore.getState().setTokens(newAccess, newRefresh);
-                ws.close();
-                void connectRef.current?.();
-              }
+              await api.post("/api/auth/refresh");
+              ws.close();
+              void connectRef.current?.();
             } catch {
               useAuthStore.getState().logout();
             }
@@ -119,7 +111,7 @@ export function useSupportSocket(options: UseSupportSocketOptions = {}) {
 
   useEffect(() => {
     mountedRef.current = true;
-    if (enabled && accessToken) {
+    if (enabled && user) {
       queueMicrotask(() => {
         void connect();
       });
@@ -135,7 +127,7 @@ export function useSupportSocket(options: UseSupportSocketOptions = {}) {
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [accessToken, clearReconnectTimer, connect, enabled]);
+  }, [user, clearReconnectTimer, connect, enabled]);
 
   const send = useCallback((payload: Record<string, unknown>) => {
     const ws = wsRef.current;

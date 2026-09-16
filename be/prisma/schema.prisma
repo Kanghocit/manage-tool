@@ -475,13 +475,29 @@ model CaseStudySet {
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
-  createdBy User                 @relation("CaseStudySetCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  passages  CaseStudyPassage[]
-  questions CaseStudyQuestion[]
-  attempts  CaseStudyAttempt[]
+  createdBy     User                    @relation("CaseStudySetCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  passages      CaseStudyPassage[]
+  questions     CaseStudyQuestion[]
+  attempts      CaseStudyAttempt[]
+  bookletPages  CaseStudyBookletPage[]
 
   @@index([status])
   @@index([createdById])
+}
+
+model CaseStudyBookletPage {
+  id           String @id @default(uuid())
+  setId        String
+  pageIndex    Int
+  storageKey   String
+  questionFrom Int    @default(0)
+  questionTo   Int    @default(0)
+  mimeType     String @default("image/jpeg")
+
+  set CaseStudySet @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  @@unique([setId, pageIndex])
+  @@index([setId])
 }
 
 model CaseStudyPassage {
