@@ -4,12 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Spin, message } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
 
-import { apiAssetUrl } from "../../lib/api";
 import {
   checkCaseQuestion,
   fetchCaseStudySet,
   updateCaseProgress,
 } from "../lib/caseStudyApi";
+import { BookletPageImage } from "./BookletPageImage";
 import { PART_LABELS, type CaseStudyBookletPage, type CaseStudyPart } from "../lib/caseStudyTypes";
 import type { CaseStudyQuestion } from "../lib/caseStudyTypes";
 import { bookletPagesForQuestion } from "../lib/caseStudyUtils";
@@ -186,9 +186,9 @@ function QuizSession({
           <div className="case-quiz-booklet-panel">
             <div className="case-quiz-section-title">Đề gốc</div>
             {currentBookletPages.map((page) => (
-              <img
+              <BookletPageImage
                 key={page.pageIndex}
-                src={apiAssetUrl(page.url)}
+                url={page.url}
                 alt={`Trang đề ${page.pageIndex + 1}`}
                 className="case-quiz-booklet-img"
               />

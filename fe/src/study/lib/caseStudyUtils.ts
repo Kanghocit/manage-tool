@@ -21,19 +21,47 @@ export function bookletPagesForQuestion(
 
 export function uncoveredQuestionNumbers(
   pages: Array<{ questionFrom: number; questionTo: number }>,
-  min = 101,
-  max = 200,
+  questionNumbers: number[],
 ): number[] {
+  const expected = [...new Set(questionNumbers)].sort((a, b) => a - b);
+  if (expected.length === 0) return [];
+
+  const expectedSet = new Set(expected);
   const covered = new Set<number>();
   for (const page of pages) {
     if (page.questionFrom <= 0 || page.questionTo <= 0) continue;
-    for (let n = page.questionFrom; n <= page.questionTo; n++) {
-      if (n >= min && n <= max) covered.add(n);
+    const from = Math.min(page.questionFrom, page.questionTo);
+    const to = Math.max(page.questionFrom, page.questionTo);
+    for (let n = from; n <= to; n++) {
+      if (expectedSet.has(n)) covered.add(n);
     }
   }
-  const missing: number[] = [];
-  for (let n = min; n <= max; n++) {
-    if (!covered.has(n)) missing.push(n);
+
+  return expected.filter((n) => !covered.has(n));
+}
+
+/** Split parsed question numbers evenly across booklet pages (starting point for manual edits). */
+export function suggestBookletPageRanges(
+  pageCount: number,
+  questionNumbers: number[],
+): Array<{ questionFrom: number; questionTo: number }> {
+  const sorted = [...new Set(questionNumbers)].sort((a, b) => a - b);
+  if (pageCount <= 0 || sorted.length === 0) {
+    return Array.from({ length: Math.max(pageCount, 0) }, () => ({
+      questionFrom: 0,
+      questionTo: 0,
+    }));
   }
-  return missing;
+
+  return Array.from({ length: pageCount }, (_, i) => {
+    const startIdx = Math.floor((i * sorted.length) / pageCount);
+    const endIdx = Math.floor(((i + 1) * sorted.length) / pageCount) - 1;
+    if (startIdx >= sorted.length) {
+      return { questionFrom: 0, questionTo: 0 };
+    }
+    return {
+      questionFrom: sorted[startIdx],
+      questionTo: sorted[Math.max(startIdx, endIdx)],
+    };
+  });
 }

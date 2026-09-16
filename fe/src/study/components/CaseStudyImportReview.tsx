@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
 import { Alert, Button, Form, Input, InputNumber, Select, Tabs, message } from "antd";
 
-import { apiAssetUrl } from "../../lib/api";
+import { BookletPageImage } from "./BookletPageImage";
 import type {
   CaseStudyBookletPageInput,
   CaseStudyParsePreview,
 } from "../lib/caseStudyTypes";
-import { uncoveredQuestionNumbers } from "../lib/caseStudyUtils";
+import {
+  suggestBookletPageRanges,
+  uncoveredQuestionNumbers,
+} from "../lib/caseStudyUtils";
 
 type BookletPageDraft = CaseStudyBookletPageInput & { url: string };
 
@@ -40,24 +43,71 @@ export function CaseStudyImportReview({
   const [status, setStatus] = useState<"draft" | "published">("draft");
   const [passages, setPassages] = useState(preview.passages);
   const [questions, setQuestions] = useState(preview.questions);
-  const [bookletPages, setBookletPages] = useState<BookletPageDraft[]>(
-    initialBookletPages.map((p) => ({
+  const questionNumbers = useMemo(
+    () => preview.questions.map((q) => q.number),
+    [preview.questions],
+  );
+  const questionNumberSet = useMemo(() => new Set(questionNumbers), [questionNumbers]);
+
+  const countMappedQuestions = (from: number, to: number) => {
+    if (from <= 0 || to <= 0) return 0;
+    const lo = Math.min(from, to);
+    const hi = Math.max(from, to);
+    let count = 0;
+    for (let n = lo; n <= hi; n++) {
+      if (questionNumberSet.has(n)) count += 1;
+    }
+    return count;
+  };
+
+  const [bookletPages, setBookletPages] = useState<BookletPageDraft[]>(() => {
+    const drafts = initialBookletPages.map((p) => ({
       pageIndex: p.pageIndex,
       url: p.url,
       questionFrom: 0,
       questionTo: 0,
-    })),
-  );
+    }));
+    const suggestions = suggestBookletPageRanges(drafts.length, questionNumbers);
+    return drafts.map((p, i) => ({
+      ...p,
+      questionFrom: suggestions[i]?.questionFrom ?? 0,
+      questionTo: suggestions[i]?.questionTo ?? 0,
+    }));
+  });
 
   const hasBooklet = bookletPages.length > 0;
+  const questionRangeLabel = useMemo(() => {
+    if (questionNumbers.length === 0) return "";
+    const sorted = [...questionNumbers].sort((a, b) => a - b);
+    return `${sorted[0]}–${sorted[sorted.length - 1]}`;
+  }, [questionNumbers]);
   const emptyPassages = useMemo(
     () => passages.filter((p) => !p.contentEn.trim()).length,
     [passages],
   );
   const missingCoverage = useMemo(
-    () => (hasBooklet ? uncoveredQuestionNumbers(bookletPages) : []),
-    [bookletPages, hasBooklet],
+    () => (hasBooklet ? uncoveredQuestionNumbers(bookletPages, questionNumbers) : []),
+    [bookletPages, hasBooklet, questionNumbers],
   );
+  const assignedCount = questionNumbers.length - missingCoverage.length;
+
+  const applyEvenSplit = () => {
+    const suggestions = suggestBookletPageRanges(bookletPages.length, questionNumbers);
+    setBookletPages((prev) =>
+      prev.map((p, i) => ({
+        ...p,
+        questionFrom: suggestions[i]?.questionFrom ?? 0,
+        questionTo: suggestions[i]?.questionTo ?? 0,
+      })),
+    );
+    message.success("Đã gợi ý chia đều — chỉnh lại theo từng trang đề");
+  };
+
+  const clearPageRanges = () => {
+    setBookletPages((prev) =>
+      prev.map((p) => ({ ...p, questionFrom: 0, questionTo: 0 })),
+    );
+  };
 
   const updateQuestion = (index: number, patch: Partial<(typeof questions)[0]>) => {
     setQuestions((prev) => prev.map((q, i) => (i === index ? { ...q, ...patch } : q)));
@@ -84,8 +134,10 @@ export function CaseStudyImportReview({
       message.warning("Không có câu hỏi");
       return;
     }
-    if (hasBooklet && missingCoverage.length > 0) {
-      message.warning(`Chưa gán đủ câu 101–200 (thiếu ${missingCoverage.length} câu)`);
+    if (hasBooklet && status === "published" && missingCoverage.length > 0) {
+      message.warning(
+        `Chưa gán đủ câu ${questionRangeLabel} (thiếu ${missingCoverage.length} câu) — lưu Nháp hoặc gán trang trước khi đăng`,
+      );
       return;
     }
 
@@ -117,6 +169,26 @@ export function CaseStudyImportReview({
             label: `Đề gốc (${bookletPages.length} trang)`,
             children: (
               <div style={{ maxHeight: "55vh", overflow: "auto" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 8,
+                    alignItems: "center",
+                    marginBottom: 12,
+                  }}
+                >
+                  <Button size="small" onClick={applyEvenSplit}>
+                    Gợi ý chia đều
+                  </Button>
+                  <Button size="small" onClick={clearPageRanges}>
+                    Xóa gán
+                  </Button>
+                  <span style={{ fontSize: 12, color: "var(--study-muted)" }}>
+                    {questionNumbers.length} câu ({questionRangeLabel}) · Đã gán{" "}
+                    {assignedCount}/{questionNumbers.length}
+                  </span>
+                </div>
                 {missingCoverage.length > 0 && (
                   <Alert
                     type="warning"
@@ -125,7 +197,8 @@ export function CaseStudyImportReview({
                     message={`Thiếu ${missingCoverage.length} câu chưa được gán trang`}
                     description={
                       <span style={{ fontSize: 12 }}>
-                        Ví dụ: {missingCoverage.slice(0, 12).join(", ")}
+                        Xem ảnh từng trang, chỉnh &quot;Câu từ / đến&quot; cho khớp đề in. Ví dụ
+                        thiếu: {missingCoverage.slice(0, 12).join(", ")}
                         {missingCoverage.length > 12 ? "…" : ""}
                       </span>
                     }
@@ -144,35 +217,33 @@ export function CaseStudyImportReview({
                     <div style={{ fontSize: 12, marginBottom: 8, color: "var(--study-muted)" }}>
                       Trang {page.pageIndex + 1}
                     </div>
-                    <img
-                      src={apiAssetUrl(page.url)}
+                    <BookletPageImage
+                      url={page.url}
                       alt={`Trang ${page.pageIndex + 1}`}
-                      style={{
-                        width: "100%",
-                        maxHeight: 280,
-                        objectFit: "contain",
-                        background: "#f1f5f9",
-                        borderRadius: 8,
-                        marginBottom: 10,
-                      }}
+                      style={{ marginBottom: 10 }}
                     />
-                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                       <span style={{ fontSize: 12 }}>Câu từ</span>
                       <InputNumber
-                        min={101}
-                        max={200}
+                        min={1}
+                        max={999}
                         value={page.questionFrom || undefined}
                         placeholder="101"
                         onChange={(v) => updateBookletPage(i, { questionFrom: v ?? 0 })}
                       />
                       <span style={{ fontSize: 12 }}>đến</span>
                       <InputNumber
-                        min={101}
-                        max={200}
+                        min={1}
+                        max={999}
                         value={page.questionTo || undefined}
                         placeholder="130"
                         onChange={(v) => updateBookletPage(i, { questionTo: v ?? 0 })}
                       />
+                      {page.questionFrom > 0 && page.questionTo > 0 && (
+                        <span style={{ fontSize: 11, color: "var(--study-muted)" }}>
+                          ({countMappedQuestions(page.questionFrom, page.questionTo)} câu)
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}
