@@ -1,11 +1,18 @@
 import axios, { type AxiosRequestConfig } from 'axios'
 import { useAuthStore } from '../store/useAuthStore'
 
-function resolveApiBaseUrl(): string {
+export function resolveApiBaseUrl(): string {
   const configured = import.meta.env.VITE_API_URL
   if (configured) return configured
   if (import.meta.env.DEV) return ''
   return 'http://localhost:4000'
+}
+
+/** Relative /api/... paths for <img src> — must hit API host, not the static FE origin. */
+export function apiAssetUrl(path: string): string {
+  const base = resolveApiBaseUrl().replace(/\/$/, '')
+  const normalized = path.startsWith('/') ? path : `/${path}`
+  return base ? `${base}${normalized}` : normalized
 }
 
 export const api = axios.create({

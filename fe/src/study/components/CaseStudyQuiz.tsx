@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Spin, message } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
 
+import { apiAssetUrl } from "../../lib/api";
 import {
   checkCaseQuestion,
   fetchCaseStudySet,
@@ -187,7 +188,7 @@ function QuizSession({
             {currentBookletPages.map((page) => (
               <img
                 key={page.pageIndex}
-                src={page.url}
+                src={apiAssetUrl(page.url)}
                 alt={`Trang đề ${page.pageIndex + 1}`}
                 className="case-quiz-booklet-img"
               />

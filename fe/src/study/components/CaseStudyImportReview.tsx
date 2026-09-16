@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Alert, Button, Form, Input, InputNumber, Select, Tabs, message } from "antd";
 
+import { apiAssetUrl } from "../../lib/api";
 import type {
   CaseStudyBookletPageInput,
   CaseStudyParsePreview,
@@ -144,7 +145,7 @@ export function CaseStudyImportReview({
                       Trang {page.pageIndex + 1}
                     </div>
                     <img
-                      src={page.url}
+                      src={apiAssetUrl(page.url)}
                       alt={`Trang ${page.pageIndex + 1}`}
                       style={{
                         width: "100%",
