@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 
+import { AuthBootstrapGate } from "./components/AuthBootstrapGate";
 import { AuthenticatedRedirect } from "./components/AuthenticatedRedirect";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuthStore } from "./store/useAuthStore";
@@ -15,12 +16,14 @@ import { AdminCaseStudyRoute } from "./study/components/AdminCaseStudyRoute";
 
 function LoginRoute() {
   const user = useAuthStore((state) => state.user);
-  return user ? <AuthenticatedRedirect /> : <LoginPage />;
+  if (user) return <AuthenticatedRedirect />;
+  return <LoginPage />;
 }
 
 function RegisterRoute() {
   const user = useAuthStore((state) => state.user);
-  return user ? <AuthenticatedRedirect /> : <RegisterPage />;
+  if (user) return <AuthenticatedRedirect />;
+  return <RegisterPage />;
 }
 
 export function AppRoutes() {
@@ -36,8 +39,9 @@ export function AppRoutes() {
   }, [i18n.language]);
 
   return (
-    <BrowserRouter>
-      <Routes>
+    <AuthBootstrapGate>
+      <BrowserRouter>
+        <Routes>
         <Route
           path="/auth/extension"
           element={<ExtensionHandoffPage />}
@@ -72,7 +76,8 @@ export function AppRoutes() {
             </ProtectedRoute>
           }
         />
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </AuthBootstrapGate>
   );
 }

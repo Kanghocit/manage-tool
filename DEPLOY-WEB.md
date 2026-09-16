@@ -123,6 +123,22 @@ server {
 
 **Block API** (`server_name api.ankhang.name.vn`):
 
+Import PDF đề Case Study (2 file ~4MB + rasterize 30 trang) cần body lớn và timeout dài — thêm trong `server { ... }` của block API:
+
+```nginx
+client_max_body_size 25M;
+proxy_read_timeout 300s;
+proxy_send_timeout 300s;
+```
+
+**Thư viện native cho import đề (canvas):** trên VPS Ubuntu/Debian, trước `npm ci` trong `be/`:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
+cd /var/www/manage-tool/be && npm ci && npm run db:deploy
+```
+
 ```nginx
 location /ws/ {
     proxy_pass http://127.0.0.1:4000;

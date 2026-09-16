@@ -65,8 +65,16 @@ export function CaseStudyManageTab() {
           `Đã trích ${result.preview.questions.length} câu · ${result.bookletPages.length} trang ảnh`,
         );
       }
-    } catch {
-      message.error("Không parse được PDF");
+    } catch (err: unknown) {
+      const msg =
+        typeof err === "object" &&
+        err !== null &&
+        "response" in err &&
+        typeof (err as { response?: { data?: { message?: string } } }).response?.data
+          ?.message === "string"
+          ? (err as { response: { data: { message: string } } }).response.data.message
+          : "Không parse được PDF";
+      message.error(msg);
     } finally {
       setUploading(false);
     }

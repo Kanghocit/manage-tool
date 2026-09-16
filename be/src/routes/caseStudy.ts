@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto'
 import express from 'express'
 import { z } from 'zod'
 
-import { rasterizeBookletPdf } from '../lib/caseStudyBookletRasterizer'
+import { bookletRasterizerErrorMessage, rasterizeBookletPdf } from '../lib/caseStudyBookletRasterizer'
 import { parseCaseStudyPdf } from '../lib/caseStudyParser'
 import {
   checkCaseQuestion,
@@ -231,10 +231,27 @@ caseStudyRouter.post(
       }
 
       const sessionId = randomUUID()
-      const [preview, rasterized] = await Promise.all([
-        parseCaseStudyPdf(keyFile.buffer),
-        rasterizeBookletPdf(bookletFile.buffer, sessionId),
-      ])
+      let preview
+      try {
+        preview = await parseCaseStudyPdf(keyFile.buffer)
+      } catch (err) {
+        return res.status(400).json({
+          success: false,
+          code: 'KEY_PARSE_FAILED',
+          message: err instanceof Error ? err.message : 'Không parse được file KEY.',
+        })
+      }
+
+      let rasterized
+      try {
+        rasterized = await rasterizeBookletPdf(bookletFile.buffer, sessionId)
+      } catch (err) {
+        return res.status(503).json({
+          success: false,
+          code: 'BOOKLET_RASTERIZE_FAILED',
+          message: bookletRasterizerErrorMessage(err),
+        })
+      }
 
       res.json({
         success: true,

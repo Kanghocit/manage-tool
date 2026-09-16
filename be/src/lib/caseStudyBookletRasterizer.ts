@@ -45,6 +45,17 @@ class NodeCanvasFactory {
   }
 }
 
+export function bookletRasterizerErrorMessage(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err)
+  if (/cannot find module 'canvas'|node canvas|libcairo|libjpeg|libpng/i.test(message)) {
+    return 'Server thiếu thư viện canvas để chuyển PDF đề thành ảnh. Cài build deps (libcairo2-dev, libpango1.0-dev, libjpeg-dev) rồi chạy npm install trong thư mục be.'
+  }
+  if (/Invalid PDF|Missing PDF/i.test(message)) {
+    return 'File đề không phải PDF hợp lệ hoặc bị hỏng.'
+  }
+  return message || 'Không chuyển được PDF đề thành ảnh.'
+}
+
 export async function rasterizeBookletPdf(
   buffer: Buffer,
   sessionId: string,

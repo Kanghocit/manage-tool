@@ -7,6 +7,7 @@ import express, {
 } from "express";
 import helmet from "helmet";
 import morgan from "morgan";
+import multer from "multer";
 import rateLimit from "express-rate-limit";
 
 import { env } from './config/env'
@@ -200,15 +201,26 @@ export const createApp = () => {
       });
   });
 
-  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     console.error("[ERROR]", err);
-    res
-      .status(500)
-      .json({
+
+    if (err instanceof multer.MulterError) {
+      const tooLarge = err.code === 'LIMIT_FILE_SIZE'
+      return res.status(tooLarge ? 413 : 400).json({
         success: false,
-        code: "INTERNAL_ERROR",
-        message: err.message || "Internal server error.",
-      });
+        code: tooLarge ? 'FILE_TOO_LARGE' : 'UPLOAD_ERROR',
+        message: tooLarge
+          ? 'File PDF quá lớn (tối đa 20MB). Nén PDF hoặc tăng client_max_body_size trên Nginx.'
+          : err.message,
+      })
+    }
+
+    const message = err instanceof Error ? err.message : 'Internal server error.'
+    res.status(500).json({
+      success: false,
+      code: 'INTERNAL_ERROR',
+      message,
+    })
   });
 
   return app;
