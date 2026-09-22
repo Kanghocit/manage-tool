@@ -13,6 +13,7 @@ const seedDatabase = (): Database => ({
     {
       id: crypto.randomUUID(),
       email: 'admin@example.com',
+      phone: null,
       fullName: 'System Admin',
       password: 'Admin@123',
       role: 'admin',
@@ -21,6 +22,7 @@ const seedDatabase = (): Database => ({
     {
       id: crypto.randomUUID(),
       email: 'user@example.com',
+      phone: '0912345678',
       fullName: 'Demo User',
       password: 'User@123',
       role: 'user',
@@ -70,14 +72,28 @@ export const mockApi = {
     })
   },
 
-  register: async (payload: { fullName: string; email: string; password: string; role: Role }) => {
+  register: async (payload: {
+    fullName: string
+    phone: string
+    email?: string | null
+    password: string
+    role: Role
+  }) => {
     const db = readDb()
-    if (db.users.some((user) => user.email === payload.email)) {
+    const email = payload.email?.trim() || null
+    if (email && db.users.some((user) => user.email === email)) {
       throw new Error('Email already exists.')
+    }
+    if (db.users.some((user) => user.phone === payload.phone)) {
+      throw new Error('Phone number already exists.')
     }
     const newUser: SeedUser = {
       id: crypto.randomUUID(),
-      ...payload,
+      fullName: payload.fullName,
+      phone: payload.phone,
+      email,
+      password: payload.password,
+      role: payload.role,
       status: 'active',
     }
     db.users.push(newUser)
