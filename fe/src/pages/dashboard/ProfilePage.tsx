@@ -71,6 +71,12 @@ export function ProfilePage() {
         </ProCard>
         <ProCard bordered className="h-full">
           <Statistic
+            title={t("fields.phone")}
+            value={user?.phone ?? "—"}
+          />
+        </ProCard>
+        <ProCard bordered className="h-full">
+          <Statistic
             title={t("fields.role")}
             value={user?.role === "admin" ? t("roles.admin") : t("roles.user")}
           />
@@ -81,12 +87,14 @@ export function ProfilePage() {
         <ProDescriptions
           column={1}
           dataSource={{
-            email: user?.email,
+            email: user?.email ?? "—",
+            phone: user?.phone ?? "—",
             status: user?.status,
             role: user?.role,
           }}
           columns={[
             { title: "Email", dataIndex: "email" },
+            { title: t("fields.phone"), dataIndex: "phone" },
             {
               title: t("common.status"),
               dataIndex: "status",

@@ -24,7 +24,8 @@ export function ExtensionHandoffPage() {
         success: boolean;
         user: {
           id: string;
-          email: string;
+          email: string | null;
+          phone: string | null;
           fullName: string;
           role: "admin" | "user";
           status: "active" | "blocked";

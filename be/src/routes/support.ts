@@ -91,7 +91,7 @@ supportRouter.post("/sessions/:id/escalate", async (req, res, next) => {
     const session = await prisma.supportSession.findFirst({
       where: { id: sessionId, userId },
       include: {
-        user: { select: { id: true, email: true, fullName: true } },
+        user: { select: { id: true, email: true, phone: true, fullName: true } },
         messages: { orderBy: { createdAt: "asc" } },
       },
     });
@@ -115,7 +115,7 @@ supportRouter.post("/sessions/:id/escalate", async (req, res, next) => {
       where: { id: sessionId },
       data: { status: "waiting_admin" },
       include: {
-        user: { select: { id: true, email: true, fullName: true } },
+        user: { select: { id: true, email: true, phone: true, fullName: true } },
         messages: { orderBy: { createdAt: "asc" } },
       },
     });
@@ -130,7 +130,7 @@ supportRouter.post("/sessions/:id/escalate", async (req, res, next) => {
     void sendTelegramMessage(
       formatSupportTelegramMessage({
         sessionId: updated.id,
-        userEmail: updated.user.email,
+        userEmail: updated.user.email ?? updated.user.phone ?? updated.user.id,
         userFullName: updated.user.fullName,
         createdAt: updated.createdAt,
         adminUrl: `${env.appPublicUrl.replace(/\/$/, "")}/admin/support/${updated.id}`,

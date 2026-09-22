@@ -17,6 +17,7 @@ const MAX_EXPORT_ROWS = 10_000
 
 const USER_EXPORT_HEADERS = [
   'email',
+  'phone',
   'fullName',
   'role',
   'status',
@@ -115,7 +116,8 @@ const changeRegistrationSourceSchema = z.object({
 
 function mapUserRow(user: {
   id: string
-  email: string
+  email: string | null
+  phone: string | null
   fullName: string
   role: RoleName
   status: UserStatus
@@ -124,11 +126,12 @@ function mapUserRow(user: {
   registrationSource: 'self' | 'admin'
   welcomeEmailSentAt: Date | null
   welcomeTrialLicenseId: string | null
-  createdByAdmin: { id: string; fullName: string; email: string } | null
+  createdByAdmin: { id: string; fullName: string; email: string | null } | null
 }) {
   return {
     id: user.id,
     email: user.email,
+    phone: user.phone,
     fullName: user.fullName,
     role: user.role,
     status: user.status,
@@ -189,6 +192,7 @@ adminUsersRouter.get('/export', async (req, res, next) => {
     if (kw) {
       where.OR = [
         { email: { contains: kw, mode: 'insensitive' } },
+        { phone: { contains: kw, mode: 'insensitive' } },
         { fullName: { contains: kw, mode: 'insensitive' } },
       ]
     }
@@ -199,6 +203,7 @@ adminUsersRouter.get('/export', async (req, res, next) => {
       take: MAX_EXPORT_ROWS,
       select: {
         email: true,
+        phone: true,
         fullName: true,
         role: true,
         status: true,
@@ -211,7 +216,8 @@ adminUsersRouter.get('/export', async (req, res, next) => {
     })
 
     const data = rows.map((u) => ({
-      email: u.email,
+      email: u.email ?? '',
+      phone: u.phone ?? '',
       fullName: u.fullName,
       role: u.role,
       status: u.status,
@@ -292,7 +298,7 @@ adminUsersRouter.post('/import', excelUpload.single('file'), async (req, res, ne
         },
         select: { id: true, email: true },
       })
-      created.push(user.email)
+      created.push(user.email ?? user.id)
     }
 
     await audit(actorId, 'admin.user.import', 'user', 'bulk', {
@@ -334,6 +340,7 @@ adminUsersRouter.get('/', async (req, res, next) => {
     if (kw) {
       where.OR = [
         { email: { contains: kw, mode: 'insensitive' } },
+        { phone: { contains: kw, mode: 'insensitive' } },
         { fullName: { contains: kw, mode: 'insensitive' } },
       ]
     }
@@ -347,6 +354,7 @@ adminUsersRouter.get('/', async (req, res, next) => {
         select: {
           id: true,
           email: true,
+          phone: true,
           fullName: true,
           role: true,
           status: true,
@@ -475,6 +483,14 @@ adminUsersRouter.post('/:id/send-welcome-email', async (req, res, next) => {
         success: false,
         code: 'NOT_SELF_REGISTERED',
         message: 'Welcome email can only be sent to self-registered users.',
+      })
+    }
+
+    if (!user.email) {
+      return res.status(400).json({
+        success: false,
+        code: 'NO_EMAIL',
+        message: 'This user has no email address.',
       })
     }
 

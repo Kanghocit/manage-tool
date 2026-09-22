@@ -64,7 +64,7 @@ licenseRequestsRouter.post("/", async (req, res, next) => {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, fullName: true },
+      select: { id: true, email: true, phone: true, fullName: true },
     });
     if (!user) {
       return res.status(404).json({
@@ -86,7 +86,7 @@ licenseRequestsRouter.post("/", async (req, res, next) => {
     void sendTelegramMessage(
       formatLicenseRequestTelegramMessage({
         requestId: request.id,
-        userEmail: user.email,
+        userEmail: user.email ?? user.phone ?? user.id,
         userFullName: user.fullName,
         note: request.note,
         createdAt: request.createdAt,

@@ -7,7 +7,8 @@ import { userStatusColor, userStatusLabel } from "../../lib/statusLabels";
 
 export type UserAdminRow = {
   id: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
   fullName: string;
   role: "admin" | "user";
   status: "active" | "blocked";
@@ -39,7 +40,7 @@ type Props = {
 };
 
 function canSendWelcomeEmail(row: UserAdminRow) {
-  return row.registrationSource === "self" && !row.welcomeEmailSentAt;
+  return row.registrationSource === "self" && !row.welcomeEmailSentAt && Boolean(row.email);
 }
 
 function getSendEmailDisabledReason(
@@ -48,6 +49,7 @@ function getSendEmailDisabledReason(
 ): string | undefined {
   if (canSendWelcomeEmail(row)) return undefined;
   if (row.registrationSource !== "self") return t("adminUsers.sendEmailDisabledAdmin");
+  if (!row.email) return t("adminUsers.sendEmailDisabledNoEmail");
   if (row.welcomeEmailSentAt) return t("adminUsers.sendEmailDisabledSent");
   return undefined;
 }
@@ -77,7 +79,10 @@ export function UserAdminMobileCard({
   return (
     <Card size="small" className="admin-mobile-card">
       <div className="mb-2 font-medium text-slate-900">{row.fullName}</div>
-      <div className="mb-2 text-sm text-slate-600 break-all">{row.email}</div>
+      <div className="mb-1 text-sm text-slate-600 break-all">
+        {row.email ?? "—"}
+      </div>
+      <div className="mb-2 text-sm text-slate-600">{row.phone ?? "—"}</div>
       <Space wrap className="mb-2">
         <Tag>{t(`roles.${row.role}`)}</Tag>
         <Tag color={statusColor(row.status)}>{userStatusLabel(row.status, t)}</Tag>

@@ -67,7 +67,8 @@ enum CaseStudySetStatus {
 
 model User {
   id                   String             @id @default(uuid())
-  email                String             @unique
+  email                String?            @unique
+  phone                String?            @unique
   passwordHash         String
   fullName             String
   role                 RoleName           @default(user)

@@ -4,6 +4,7 @@ import axios from "axios";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
+import { isValidVnMobilePhone, normalizeVnPhone } from "../../lib/phone";
 import { useAuthStore } from "../../store/useAuthStore";
 import { sanitizeAppRedirect } from "../../lib/safeRedirect";
 import { AuthShell } from "./AuthShell";
@@ -20,6 +21,11 @@ function authErrorMessage(err: unknown): string {
   return "Request failed.";
 }
 
+type LoginForm = {
+  identifier: string;
+  password: string;
+};
+
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -27,7 +33,7 @@ export function LoginPage() {
   const { message } = AntApp.useApp();
   const setUser = useAuthStore((state) => state.setUser);
   const { t } = useTranslation();
-  const [form] = Form.useForm<{ email: string; password: string }>();
+  const [form] = Form.useForm<LoginForm>();
 
   const redirectTo = sanitizeAppRedirect(
     searchParams.get("redirect") ??
@@ -36,12 +42,19 @@ export function LoginPage() {
   );
 
   const mutation = useMutation({
-    mutationFn: (values: { email: string; password: string }) =>
-      api.post("/api/auth/login", values).then((res) => res.data),
+    mutationFn: (values: LoginForm) => {
+      const identifier = values.identifier.trim();
+      const body =
+        identifier.includes("@")
+          ? { email: identifier, password: values.password }
+          : { phone: normalizeVnPhone(identifier), password: values.password };
+      return api.post("/api/auth/login", body).then((res) => res.data);
+    },
     onSuccess: (data: {
       user: {
         id: string;
-        email: string;
+        email: string | null;
+        phone: string | null;
         fullName: string;
         role: "admin" | "user";
         status: "active" | "blocked";
@@ -99,17 +112,25 @@ export function LoginPage() {
           onFinish={(values) => mutation.mutate(values)}
         >
           <Form.Item
-            name="email"
-            label="Email"
+            name="identifier"
+            label={t("auth.loginIdentifierLabel")}
             rules={[
+              { required: true, message: t("auth.loginIdentifierRequired") },
               {
-                required: true,
-                type: "email",
-                message: t("auth.emailRequired"),
+                validator: (_, value) => {
+                  if (!value) return Promise.resolve();
+                  const s = String(value).trim();
+                  if (s.includes("@")) return Promise.resolve();
+                  if (isValidVnMobilePhone(s)) return Promise.resolve();
+                  return Promise.reject(new Error(t("auth.phoneInvalid")));
+                },
               },
             ]}
           >
-            <Input placeholder="admin@example.com" autoComplete="email" />
+            <Input
+              placeholder="0912345678 hoặc admin@example.com"
+              autoComplete="username"
+            />
           </Form.Item>
           <Form.Item
             name="password"

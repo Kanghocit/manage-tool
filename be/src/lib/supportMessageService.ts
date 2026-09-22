@@ -73,7 +73,7 @@ export async function sendSupportMessage(
       status: true,
       userId: true,
       createdAt: true,
-      user: { select: { email: true, fullName: true } },
+      user: { select: { id: true, email: true, phone: true, fullName: true } },
     },
   });
 
@@ -122,7 +122,7 @@ export async function sendSupportMessage(
     void sendTelegramMessage(
       formatSupportTelegramMessage({
         sessionId: session.id,
-        userEmail: session.user.email,
+        userEmail: session.user.email ?? session.user.phone ?? session.user.id,
         userFullName: session.user.fullName,
         createdAt: session.createdAt,
         adminUrl: `${env.appPublicUrl.replace(/\/$/, "")}/admin/support/${session.id}`,

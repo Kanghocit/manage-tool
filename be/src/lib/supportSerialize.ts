@@ -16,7 +16,7 @@ export type SerializedSupportSession = {
   updatedAt: string;
   user?: {
     id: string;
-    email: string;
+    email: string | null;
     fullName: string;
   };
   messages?: SerializedSupportMessage[];

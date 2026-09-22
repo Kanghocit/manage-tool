@@ -23,7 +23,15 @@
     "emailRequired": "Please enter a valid email.",
     "passwordLabel": "Password",
     "passwordRequired": "Please enter your password.",
-    "fullNameRequired": "Please enter your full name."
+    "fullNameRequired": "Please enter your full name.",
+    "phoneLabel": "Phone number",
+    "phoneRequired": "Please enter your phone number.",
+    "phoneInvalid": "Invalid Vietnamese phone number (e.g. 0912345678).",
+    "loginIdentifierLabel": "Email or phone",
+    "loginIdentifierRequired": "Please enter email or phone number.",
+    "emailOptional": "Email (optional)",
+    "phoneHelpTooltip": "Your phone number is used to sign in and identify your account. Each number can only register once—use a number you keep long term.",
+    "emailHelpTooltip": "Email is optional but recommended: we can send your welcome trial license, updates, and support messages by email. Without email you can still use the app and sign in with your phone."
   },
   "profile": {
     "changePassword": "Change password",
@@ -81,6 +89,7 @@
   },
   "fields": {
     "fullName": "Full name",
+    "phone": "Phone number",
     "role": "Role",
     "type": "Type"
   },
@@ -137,6 +146,7 @@
   },
   "adminUsers": {
     "email": "Email",
+    "phone": "Phone",
     "fullName": "Full name",
     "role": "Role",
     "createdAt": "Created at",
@@ -177,6 +187,7 @@
     "emailNotApplicable": "—",
     "sendEmail": "Send email",
     "sendEmailDisabledAdmin": "Only for self-registered users",
+    "sendEmailDisabledNoEmail": "User has no email address",
     "sendEmailDisabledSent": "Welcome email already sent",
     "resetDeviceDisabled": "No device bound to this account",
     "confirmSendEmail": "Send welcome email with trial license to this user?",

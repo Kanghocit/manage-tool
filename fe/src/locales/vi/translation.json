@@ -23,7 +23,15 @@
     "emailRequired": "Vui lòng nhập email hợp lệ.",
     "passwordLabel": "Mật khẩu",
     "passwordRequired": "Vui lòng nhập mật khẩu.",
-    "fullNameRequired": "Vui lòng nhập họ và tên."
+    "fullNameRequired": "Vui lòng nhập họ và tên.",
+    "phoneLabel": "Số điện thoại",
+    "phoneRequired": "Vui lòng nhập số điện thoại.",
+    "phoneInvalid": "Số điện thoại không hợp lệ (vd: 0912345678).",
+    "loginIdentifierLabel": "Email hoặc số điện thoại",
+    "loginIdentifierRequired": "Vui lòng nhập email hoặc số điện thoại.",
+    "emailOptional": "Email (tùy chọn)",
+    "phoneHelpTooltip": "Số điện thoại dùng để đăng nhập và xác định tài khoản của bạn. Mỗi SĐT chỉ đăng ký một tài khoản; hãy dùng số bạn thường xuyên sử dụng.",
+    "emailHelpTooltip": "Email không bắt buộc nhưng nên có: hệ thống có thể gửi license trial chào mừng, thông báo và hỗ trợ qua email. Không có email vẫn dùng được, chỉ đăng nhập bằng SĐT."
   },
   "profile": {
     "changePassword": "Đổi mật khẩu",
@@ -81,6 +89,7 @@
   },
   "fields": {
     "fullName": "Họ và tên",
+    "phone": "Số điện thoại",
     "role": "Vai trò",
     "type": "Loại"
   },
@@ -137,6 +146,7 @@
   },
   "adminUsers": {
     "email": "Email",
+    "phone": "Số điện thoại",
     "fullName": "Họ và tên",
     "role": "Vai trò",
     "createdAt": "Ngày tạo",
@@ -177,6 +187,7 @@
     "emailNotApplicable": "—",
     "sendEmail": "Gửi mail",
     "sendEmailDisabledAdmin": "Chỉ áp dụng cho user tự đăng ký",
+    "sendEmailDisabledNoEmail": "User chưa có email",
     "sendEmailDisabledSent": "Email chào mừng đã được gửi",
     "resetDeviceDisabled": "Tài khoản chưa gắn thiết bị",
     "confirmSendEmail": "Gửi email chào mừng kèm license trial cho user này?",

@@ -1,9 +1,11 @@
-import { App as AntApp, Button, Form, Input, Typography } from "antd";
+import { QuestionCircleOutlined } from "@ant-design/icons";
+import { App as AntApp, Button, Form, Input, Tooltip, Typography } from "antd";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
+import { isValidVnMobilePhone, normalizeVnPhone } from "../../lib/phone";
 import { useAuthStore } from "../../store/useAuthStore";
 import { AuthShell } from "./AuthShell";
 
@@ -16,18 +18,60 @@ function authErrorMessage(err: unknown): string {
   return "Request failed.";
 }
 
+type RegisterForm = {
+  fullName: string;
+  phone: string;
+  email?: string;
+  password: string;
+};
+
+function FieldLabelWithHelp({
+  label,
+  tooltip,
+}: {
+  label: string;
+  tooltip: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {label}
+      <Tooltip title={tooltip} overlayStyle={{ maxWidth: 320 }}>
+        <QuestionCircleOutlined
+          className="cursor-help text-sm text-slate-400"
+          aria-label={tooltip}
+        />
+      </Tooltip>
+    </span>
+  );
+}
+
 export function RegisterPage() {
   const navigate = useNavigate();
   const { message } = AntApp.useApp();
   const setUser = useAuthStore((state) => state.setUser);
   const { t } = useTranslation();
-  const [form] = Form.useForm<{ fullName: string; email: string; password: string }>();
+  const [form] = Form.useForm<RegisterForm>();
 
   const mutation = useMutation({
-    mutationFn: (values: { fullName: string; email: string; password: string }) =>
-      api.post("/api/auth/register", values).then((res) => res.data),
+    mutationFn: (values: RegisterForm) => {
+      const payload: Record<string, string> = {
+        fullName: values.fullName.trim(),
+        phone: normalizeVnPhone(values.phone),
+        password: values.password,
+      };
+      const email = values.email?.trim();
+      if (email) payload.email = email;
+      return api.post("/api/auth/register", payload).then((res) => res.data);
+    },
     onSuccess: (data: {
-      user: { id: string; email: string; fullName: string; role: "admin" | "user"; status: "active" | "blocked" };
+      user: {
+        id: string;
+        email: string | null;
+        phone: string | null;
+        fullName: string;
+        role: "admin" | "user";
+        status: "active" | "blocked";
+      };
     }) => {
       setUser(data.user);
       message.success(t("auth.registerSuccess"));
@@ -74,9 +118,36 @@ export function RegisterPage() {
             <Input placeholder="Nguyen Van A" autoComplete="name" />
           </Form.Item>
           <Form.Item
+            name="phone"
+            label={
+              <FieldLabelWithHelp
+                label={t("auth.phoneLabel")}
+                tooltip={t("auth.phoneHelpTooltip")}
+              />
+            }
+            rules={[
+              { required: true, message: t("auth.phoneRequired") },
+              {
+                validator: (_, value) => {
+                  if (!value || isValidVnMobilePhone(String(value))) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error(t("auth.phoneInvalid")));
+                },
+              },
+            ]}
+          >
+            <Input placeholder="0912345678" autoComplete="tel" inputMode="tel" />
+          </Form.Item>
+          <Form.Item
             name="email"
-            label="Email"
-            rules={[{ required: true, type: "email", message: t("auth.emailRequired") }]}
+            label={
+              <FieldLabelWithHelp
+                label={t("auth.emailOptional")}
+                tooltip={t("auth.emailHelpTooltip")}
+              />
+            }
+            rules={[{ type: "email", message: t("auth.emailRequired") }]}
           >
             <Input placeholder="user@example.com" autoComplete="email" />
           </Form.Item>

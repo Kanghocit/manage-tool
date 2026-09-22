@@ -64,7 +64,7 @@ async function fetchUsers(params: FetchParams) {
 }
 
 function canSendWelcomeEmail(row: UserRow) {
-  return row.registrationSource === "self" && !row.welcomeEmailSentAt;
+  return row.registrationSource === "self" && !row.welcomeEmailSentAt && Boolean(row.email);
 }
 
 function getSendEmailDisabledReason(
@@ -73,6 +73,7 @@ function getSendEmailDisabledReason(
 ): string | undefined {
   if (canSendWelcomeEmail(row)) return undefined;
   if (row.registrationSource !== "self") return t("adminUsers.sendEmailDisabledAdmin");
+  if (!row.email) return t("adminUsers.sendEmailDisabledNoEmail");
   if (row.welcomeEmailSentAt) return t("adminUsers.sendEmailDisabledSent");
   return undefined;
 }
@@ -372,7 +373,15 @@ function AdminUsersDesktopTable({ tab }: { tab: UserTab }) {
       dataIndex: "email",
       search: false,
       ellipsis: true,
-      width: 240,
+      width: 220,
+      render: (_, row) => row.email ?? "—",
+    },
+    {
+      title: t("adminUsers.phone"),
+      dataIndex: "phone",
+      search: false,
+      width: 130,
+      render: (_, row) => row.phone ?? "—",
     },
     {
       title: t("adminUsers.fullName"),

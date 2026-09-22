@@ -46,6 +46,7 @@ const writeDb = (db: Database) => {
 const sanitizeUser = (user: SeedUser): AuthUser => ({
   id: user.id,
   email: user.email,
+  phone: user.phone ?? null,
   fullName: user.fullName,
   role: user.role,
   status: user.status,

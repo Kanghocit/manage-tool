@@ -24,18 +24,65 @@ import {
   consumeAuthHandoffCode,
   createAuthHandoffCode,
 } from "../lib/authHandoffService";
+import {
+  isValidVnMobilePhone,
+  normalizeVnPhone,
+} from "../lib/phone";
 
 const deviceIdSchema = z.string().min(8).max(128);
 
-const loginSchema = z.object({
-  email: z.email(),
-  password: z.string().min(6),
-  deviceId: deviceIdSchema.optional(),
-});
+const vnPhoneSchema = z
+  .string()
+  .min(9)
+  .max(20)
+  .transform(normalizeVnPhone)
+  .refine(isValidVnMobilePhone, { message: "Invalid Vietnamese phone number." });
+
+const optionalEmailSchema = z.preprocess(
+  (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+  z.email().optional(),
+);
+
+const loginSchema = z
+  .object({
+    email: z.string().optional(),
+    phone: z.string().optional(),
+    password: z.string().min(6),
+    deviceId: deviceIdSchema.optional(),
+  })
+  .superRefine((data, ctx) => {
+    const email = data.email?.trim();
+    const phone = data.phone?.trim();
+    const hasEmail = Boolean(email);
+    const hasPhone = Boolean(phone);
+    if (hasEmail === hasPhone) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Provide either email or phone.",
+        path: ["email"],
+      });
+      return;
+    }
+    if (hasEmail && !z.email().safeParse(email).success) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Invalid email.",
+        path: ["email"],
+      });
+    }
+    if (hasPhone && !isValidVnMobilePhone(normalizeVnPhone(phone!))) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Invalid Vietnamese phone number.",
+        path: ["phone"],
+      });
+    }
+  });
 
 const registerSchema = z.object({
   fullName: z.string().min(2),
-  email: z.email(),
+  phone: vnPhoneSchema,
+  email: optionalEmailSchema,
   password: z.string().min(6),
   deviceId: deviceIdSchema.optional(),
 });
@@ -59,13 +106,15 @@ const handoffExchangeSchema = z.object({
 
 const sanitizeUser = (user: {
   id: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
   fullName: string;
   role: string;
   status: string;
 }) => ({
   id: user.id,
   email: user.email,
+  phone: user.phone,
   fullName: user.fullName,
   role: user.role,
   status: user.status,
@@ -113,7 +162,8 @@ function sendRefreshedTokens(
 
 async function issueUserSession(user: {
   id: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
   fullName: string;
   role: JwtRole;
   status: string;
@@ -229,14 +279,17 @@ authRouter.post("/login", async (req, res, next) => {
       });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: parsed.data.email },
-    });
+    const emailLogin = parsed.data.email?.trim();
+    const user = emailLogin
+      ? await prisma.user.findUnique({ where: { email: emailLogin } })
+      : await prisma.user.findUnique({
+          where: { phone: normalizeVnPhone(parsed.data.phone!.trim()) },
+        });
     if (!user) {
       return res.status(401).json({
         success: false,
         code: "INVALID_CREDENTIALS",
-        message: "Invalid email or password.",
+        message: "Invalid login credentials.",
       });
     }
     if (user.status !== "active") {
@@ -252,7 +305,7 @@ authRouter.post("/login", async (req, res, next) => {
       return res.status(401).json({
         success: false,
         code: "INVALID_CREDENTIALS",
-        message: "Invalid email or password.",
+        message: "Invalid login credentials.",
       });
     }
 
@@ -286,6 +339,7 @@ authRouter.post("/login", async (req, res, next) => {
     const session = await issueUserSession({
       id: user.id,
       email: user.email,
+      phone: user.phone,
       fullName: user.fullName,
       role: user.role,
       status: user.status,
@@ -315,15 +369,29 @@ authRouter.post("/register", async (req, res, next) => {
       });
     }
 
-    const exists = await prisma.user.findUnique({
-      where: { email: parsed.data.email },
+    const normalizedPhone = parsed.data.phone;
+
+    const phoneExists = await prisma.user.findUnique({
+      where: { phone: normalizedPhone },
     });
-    if (exists) {
+    if (phoneExists) {
       return res.status(409).json({
         success: false,
-        code: "EMAIL_EXISTS",
-        message: "Email already exists.",
+        code: "PHONE_EXISTS",
+        message: "Phone number already exists.",
       });
+    }
+
+    const email = parsed.data.email;
+    if (email) {
+      const emailExists = await prisma.user.findUnique({ where: { email } });
+      if (emailExists) {
+        return res.status(409).json({
+          success: false,
+          code: "EMAIL_EXISTS",
+          message: "Email already exists.",
+        });
+      }
     }
 
     const passwordHash = await bcrypt.hash(parsed.data.password, 10);
@@ -332,7 +400,8 @@ authRouter.post("/register", async (req, res, next) => {
       async (tx) => {
         const createdUser = await tx.user.create({
           data: {
-            email: parsed.data.email,
+            email: email ?? null,
+            phone: normalizedPhone,
             passwordHash,
             fullName: parsed.data.fullName,
             role: "user",
@@ -567,6 +636,7 @@ authRouter.post(
       const session = await issueUserSession({
         id: user.id,
         email: user.email,
+        phone: user.phone,
         fullName: user.fullName,
         role: user.role,
         status: user.status,

@@ -4,7 +4,8 @@ export type Role = 'admin' | 'user'
 
 export type AuthUser = {
   id: string
-  email: string
+  email: string | null
+  phone: string | null
   fullName: string
   role: Role
   status: 'active' | 'blocked'
