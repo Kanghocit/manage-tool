@@ -28,6 +28,10 @@ import {
   isValidVnMobilePhone,
   normalizeVnPhone,
 } from "../lib/phone";
+import {
+  formatSelfRegisterTelegramMessage,
+  sendTelegramMessage,
+} from "../lib/telegram";
 
 const deviceIdSchema = z.string().min(8).max(128);
 
@@ -443,6 +447,18 @@ authRouter.post("/register", async (req, res, next) => {
 
         return { user: updatedUser, accessToken, refreshToken };
       },
+    );
+
+    const adminUsersUrl = `${env.appPublicUrl.replace(/\/$/, "")}/admin/users`;
+    void sendTelegramMessage(
+      formatSelfRegisterTelegramMessage({
+        userId: user.id,
+        fullName: user.fullName,
+        phone: user.phone ?? normalizedPhone,
+        email: user.email,
+        createdAt: user.createdAt,
+        adminUrl: adminUsersUrl,
+      }),
     );
 
     return sendAuthSession(

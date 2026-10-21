@@ -88,3 +88,34 @@ export function formatSupportTelegramMessage(input: {
 
   return lines.join("\n");
 }
+
+export function formatSelfRegisterTelegramMessage(input: {
+  userId: string;
+  fullName: string;
+  phone: string;
+  email: string | null;
+  createdAt: Date;
+  adminUrl?: string;
+}): string {
+  const emailDisplay = input.email?.trim()
+    ? escapeHtml(input.email.trim())
+    : "Không có";
+
+  const lines = [
+    "<b>👤 User mới tự đăng ký</b>",
+    "",
+    `<b>Họ tên:</b> ${escapeHtml(input.fullName)}`,
+    `<b>SĐT:</b> ${escapeHtml(input.phone)}`,
+    `<b>Email:</b> ${emailDisplay}`,
+    `<b>User ID:</b> <code>${escapeHtml(input.userId)}</code>`,
+    `<b>Thời gian:</b> ${escapeHtml(input.createdAt.toISOString())}`,
+  ];
+
+  if (input.adminUrl) {
+    lines.push("", `<a href="${escapeHtml(input.adminUrl)}">Mở trang quản lý user</a>`);
+  } else {
+    lines.push("", "Vui lòng mở trang admin → Người dùng.");
+  }
+
+  return lines.join("\n");
+}
