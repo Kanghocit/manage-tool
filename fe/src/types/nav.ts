@@ -7,8 +7,6 @@ export type MenuKey =
   | "/study/cases"
   | "/study/manage"
   | "/my-license"
-  | "/zalo/accounts"
-  | "/zalo/groups"
   | "/support"
   | "/admin/users"
   | "/admin/licenses"

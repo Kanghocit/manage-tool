@@ -11,7 +11,6 @@ import {
   SafetyOutlined,
   TeamOutlined,
   UserOutlined,
-  WechatOutlined,
 } from "@ant-design/icons";
 import { Button, Badge, Space, Tooltip } from "antd";
 import { ProLayout } from "@ant-design/pro-components";
@@ -42,8 +41,6 @@ import { AdminLicensePackagesPage } from "../pages/admin/AdminLicensePackagesPag
 import { AdminLicenseRequestsPage } from "../pages/admin/AdminLicenseRequestsPage";
 import { AdminSupportPage } from "../pages/admin/AdminSupportPage";
 import { UserSupportPage } from "../pages/dashboard/UserSupportPage";
-import { ZaloAccountsPage } from "../pages/zalo/ZaloAccountsPage";
-import { ZaloGroupScanPage } from "../pages/zalo/ZaloGroupScanPage";
 import { useAdminSupportInboxBadge } from "../hooks/useAdminSupportInboxBadge";
 
 export function DashboardShell() {
@@ -80,19 +77,6 @@ export function DashboardShell() {
         name: t("menu.study"),
       });
     }
-
-    base.push(
-      {
-        path: "/zalo/accounts",
-        icon: <WechatOutlined />,
-        name: t("menu.zaloAccounts"),
-      },
-      {
-        path: "/zalo/groups",
-        icon: <TeamOutlined />,
-        name: t("menu.zaloGroups"),
-      },
-    );
 
     if (user?.role !== "admin") {
       base.push({
@@ -258,8 +242,6 @@ export function DashboardShell() {
           <Routes>
             <Route path="/dashboard" element={<OverviewPage />} />
             <Route path="/guide" element={<UserGuidePage />} />
-            <Route path="/zalo/accounts" element={<ZaloAccountsPage />} />
-            <Route path="/zalo/groups" element={<ZaloGroupScanPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route
               path="/my-license"
