@@ -160,6 +160,10 @@ export async function getApiForAccount(accountId: string, ownerUserId: string): 
   return api
 }
 
+export function evictAccountApi(accountId: string) {
+  accountApis.delete(accountId)
+}
+
 export async function deleteAccount(accountId: string, ownerUserId: string) {
   const row = await prisma.zaloAccount.findFirst({
     where: { id: accountId, ownerUserId },

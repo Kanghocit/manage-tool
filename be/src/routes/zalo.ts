@@ -5,6 +5,7 @@ import { sendXlsxDownload } from '../lib/excel'
 import {
   buildScanExportBuffer,
   getScanForUser,
+  humanizeZaloClientError,
   listGroupsForAccount,
   listScansForUser,
   startGroupMemberScan,
@@ -82,7 +83,11 @@ zaloRouter.get('/accounts/:id/groups', async (req, res) => {
     if (message === 'ACCOUNT_NOT_FOUND') {
       return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'Account not found.' })
     }
-    return res.status(500).json({ success: false, code: 'GROUPS_FAILED', message })
+    return res.status(502).json({
+      success: false,
+      code: 'ZALO_API_ERROR',
+      message: humanizeZaloClientError(message),
+    })
   }
 })
 

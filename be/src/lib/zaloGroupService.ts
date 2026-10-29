@@ -1,6 +1,7 @@
 import { rowsToXlsxBuffer } from './excel'
 import { prisma } from './prisma'
-import { getApiForAccount, publishScanProgress } from './zaloSessionManager'
+import type { ZaloApi } from './zcaClient'
+import { evictAccountApi, getApiForAccount, publishScanProgress } from './zaloSessionManager'
 
 const MEMBER_BATCH = 50
 const BATCH_DELAY_MS = 800
@@ -17,14 +18,82 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out
 }
 
+type GroupInfoMap = Record<
+  string,
+  { name?: string; totalMember?: number; memVerList?: string[]; avatar?: string }
+>
+
+const GROUP_INFO_BATCH = 20
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
+}
+
+/**
+ * Zalo rejects large getGroupInfo payloads ("Tham số không hợp lệ"), and a single
+ * bad group ID fails the whole batch — split down to single IDs and skip failures.
+ */
+async function fetchGroupInfoBatch(api: ZaloApi, ids: string[], map: GroupInfoMap) {
+  try {
+    const info = await api.getGroupInfo(ids)
+    Object.assign(map, info.gridInfoMap ?? {})
+  } catch (err) {
+    if (ids.length === 1) {
+      console.warn(`[zalo] getGroupInfo skipped group ${ids[0]}: ${errorMessage(err)}`)
+      return
+    }
+    const mid = Math.ceil(ids.length / 2)
+    await fetchGroupInfoBatch(api, ids.slice(0, mid), map)
+    await fetchGroupInfoBatch(api, ids.slice(mid), map)
+  }
+}
+
+async function fetchGroupInfoMap(api: ZaloApi, groupIds: string[]) {
+  const map: GroupInfoMap = {}
+  for (const batch of chunk(groupIds, GROUP_INFO_BATCH)) {
+    await fetchGroupInfoBatch(api, batch, map)
+  }
+  return map
+}
+
+export function humanizeZaloClientError(message: string): string {
+  const m = message.trim()
+  if (/^GET_ALL_GROUPS:/.test(m)) {
+    return `Zalo từ chối lấy danh sách nhóm (getAllGroups): ${m.replace(/^GET_ALL_GROUPS:\s*/, '')}. Thử gỡ tài khoản và đăng nhập QR lại.`
+  }
+  if (/^LOGIN:/.test(m)) {
+    return `Không khôi phục được phiên Zalo trên server: ${m.replace(/^LOGIN:\s*/, '')}. Gỡ tài khoản và đăng nhập QR lại.`
+  }
+  return m || 'Không lấy được dữ liệu từ Zalo.'
+}
+
 export async function listGroupsForAccount(accountId: string, ownerUserId: string) {
-  const api = await getApiForAccount(accountId, ownerUserId)
-  const all = await api.getAllGroups()
+  let api: ZaloApi
+  try {
+    api = await getApiForAccount(accountId, ownerUserId)
+  } catch (err) {
+    const msg = errorMessage(err)
+    if (msg === 'ACCOUNT_NOT_FOUND') throw err
+    throw new Error(`LOGIN: ${msg}`)
+  }
+
+  let all: { gridVerMap: Record<string, string> }
+  try {
+    all = await api.getAllGroups()
+  } catch (firstErr) {
+    console.warn(`[zalo] getAllGroups failed, re-login once: ${errorMessage(firstErr)}`)
+    evictAccountApi(accountId)
+    try {
+      api = await getApiForAccount(accountId, ownerUserId)
+      all = await api.getAllGroups()
+    } catch (err) {
+      throw new Error(`GET_ALL_GROUPS: ${errorMessage(err)}`)
+    }
+  }
   const groupIds = Object.keys(all.gridVerMap ?? {})
   if (groupIds.length === 0) return []
 
-  const info = await api.getGroupInfo(groupIds)
-  const map = info.gridInfoMap ?? {}
+  const map = await fetchGroupInfoMap(api, groupIds)
   return groupIds.map((id) => {
     const g = map[id]
     return {
