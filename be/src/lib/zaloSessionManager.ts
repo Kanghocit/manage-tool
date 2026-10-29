@@ -160,6 +160,36 @@ export async function getApiForAccount(accountId: string, ownerUserId: string): 
   return api
 }
 
+/** Log in with the browser's live Zalo Web session so server and chat.zalo.me share one session. */
+export async function importBrowserSession(
+  ownerUserId: string,
+  input: { cookie: unknown; imei: string; userAgent: string },
+) {
+  const { Zalo } = loadZcaSync()
+  const zalo = new Zalo({ selfListen: false, logging: false })
+  let api: ZaloApi
+  try {
+    api = await zalo.login({
+      imei: input.imei,
+      userAgent: input.userAgent,
+      cookie: input.cookie as never,
+      language: 'vi',
+    })
+  } catch (err) {
+    throw new Error(`SESSION_INVALID: ${err instanceof Error ? err.message : String(err)}`)
+  }
+
+  const zaloUid = String(await api.getOwnId())
+  const existing = await prisma.zaloAccount.findFirst({ where: { ownerUserId, zaloUid } })
+  if (!existing && (await countAccounts(ownerUserId)) >= env.zaloMaxAccountsPerUser) {
+    throw new Error('ACCOUNT_LIMIT')
+  }
+
+  const account = await persistAccountFromApi(ownerUserId, api)
+  publishLoggedIn(ownerUserId, account)
+  return account
+}
+
 export function evictAccountApi(accountId: string) {
   accountApis.delete(accountId)
 }

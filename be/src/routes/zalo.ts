@@ -14,6 +14,7 @@ import {
   cancelQrLogin,
   deleteAccount,
   getQrLoginSnapshot,
+  importBrowserSession,
   listAccountsForUser,
   startQrLogin,
 } from '../lib/zaloSessionManager'
@@ -44,6 +45,57 @@ zaloRouter.post('/accounts/qr', async (req, res) => {
       })
     }
     return res.status(500).json({ success: false, code: 'QR_START_FAILED', message })
+  }
+})
+
+zaloRouter.post('/accounts/import-session', async (req, res) => {
+  const userId = req.auth!.userId
+  const { cookie, imei, userAgent } = (req.body ?? {}) as {
+    cookie?: unknown
+    imei?: unknown
+    userAgent?: unknown
+  }
+  if (
+    !Array.isArray(cookie) ||
+    cookie.length === 0 ||
+    typeof imei !== 'string' ||
+    !imei.trim() ||
+    typeof userAgent !== 'string' ||
+    !userAgent.trim()
+  ) {
+    return res.status(400).json({
+      success: false,
+      code: 'INVALID_PAYLOAD',
+      message: 'Thiếu cookie, imei hoặc userAgent của Zalo Web.',
+    })
+  }
+  try {
+    const account = await importBrowserSession(userId, {
+      cookie,
+      imei: imei.trim(),
+      userAgent: userAgent.trim(),
+    })
+    res.json({
+      success: true,
+      data: { id: account.id, zaloUid: account.zaloUid, displayName: account.displayName },
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Import failed'
+    if (message === 'ACCOUNT_LIMIT') {
+      return res.status(400).json({
+        success: false,
+        code: 'ACCOUNT_LIMIT',
+        message: 'Đã đạt giới hạn số tài khoản Zalo.',
+      })
+    }
+    if (message.startsWith('SESSION_INVALID')) {
+      return res.status(400).json({
+        success: false,
+        code: 'SESSION_INVALID',
+        message: 'Phiên Zalo Web không hợp lệ hoặc đã đăng xuất. Đăng nhập lại chat.zalo.me rồi đồng bộ lại.',
+      })
+    }
+    return res.status(500).json({ success: false, code: 'IMPORT_FAILED', message })
   }
 })
 
