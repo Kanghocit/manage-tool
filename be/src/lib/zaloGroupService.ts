@@ -1,7 +1,14 @@
 import { rowsToXlsxBuffer } from './excel'
 import { prisma } from './prisma'
 import type { ZaloApi } from './zcaClient'
-import { evictAccountApi, getApiForAccount, publishScanProgress } from './zaloSessionManager'
+import type { AppGroupData } from './zaloPcAppClient'
+import { appGetGroupInfo, appGetGroupMembersInfo } from './zaloPcAppClient'
+import {
+  evictAccountApi,
+  getApiForAccount,
+  getAppSessionForAccount,
+  publishScanProgress,
+} from './zaloSessionManager'
 
 const MEMBER_BATCH = 50
 const BATCH_DELAY_MS = 800
@@ -176,7 +183,11 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
  * fallback for whatever it misses. A failing batch yields UIDs without names instead of
  * aborting the scan.
  */
-async function fetchMemberProfiles(api: ZaloApi, uids: string[]) {
+async function fetchMemberProfiles(
+  api: ZaloApi,
+  uids: string[],
+  appSession: Awaited<ReturnType<typeof getAppSessionForAccount>>,
+) {
   const profiles = new Map<string, MemberProfile>()
 
   try {
@@ -188,10 +199,26 @@ async function fetchMemberProfiles(api: ZaloApi, uids: string[]) {
     console.warn(`[zalo] getUserInfo batch failed: ${errorMessage(err)}`)
   }
 
-  const missing = uids.filter((uid) => {
+  let missing = uids.filter((uid) => {
     const p = profiles.get(uid)
     return !p?.displayName && !p?.zaloName
   })
+
+  if (missing.length && appSession) {
+    try {
+      const appProfiles = await appGetGroupMembersInfo(appSession, missing)
+      for (const [uid, p] of appProfiles) {
+        profiles.set(uid, { ...profiles.get(uid), ...p })
+      }
+    } catch (err) {
+      console.warn(`[zalo] appGetGroupMembersInfo failed: ${errorMessage(err)}`)
+    }
+    missing = missing.filter((uid) => {
+      const p = profiles.get(uid)
+      return !p?.displayName && !p?.zaloName
+    })
+  }
+
   if (missing.length) {
     try {
       const res = await withRetry(() => api.getGroupMembersInfo(missing))
@@ -207,6 +234,18 @@ async function fetchMemberProfiles(api: ZaloApi, uids: string[]) {
   return profiles
 }
 
+function appGroupToWebShape(group: AppGroupData | null | undefined): GroupInfoEntry | undefined {
+  if (!group) return undefined
+  return group as unknown as GroupInfoEntry
+}
+
+function countVisibleMembers(group: GroupInfoEntry | undefined): number {
+  return collectMemberUids(group).length
+}
+
+const CLOSED_GROUP_SCAN_HINT =
+  'Nhóm này ẩn danh sách thành viên trên Zalo Web (chỉ thấy một phần quản trị viên). Hãy vào tab Tài khoản Zalo → bấm «Thêm bằng QR» (Zalo PC) cho tài khoản này rồi quét lại.'
+
 async function runScanJob(
   scanId: string,
   accountId: string,
@@ -215,14 +254,52 @@ async function runScanJob(
 ) {
   try {
     const api = await getApiForAccount(accountId, ownerUserId)
-    const infoRes = await api.getGroupInfo(groupId)
-    const groupInfo = infoRes.gridInfoMap?.[groupId]
+    const appSession = await getAppSessionForAccount(accountId, ownerUserId)
+
+    let groupInfo: GroupInfoEntry | undefined
+    let appGroup: AppGroupData | null = null
+
+    if (appSession) {
+      appGroup = await appGetGroupInfo(appSession, groupId)
+      groupInfo = appGroupToWebShape(appGroup)
+    }
+
+    if (!groupInfo || countVisibleMembers(groupInfo) === 0) {
+      const infoRes = await api.getGroupInfo(groupId)
+      const webGroup = infoRes.gridInfoMap?.[groupId]
+      if (!groupInfo || countVisibleMembers(webGroup) > countVisibleMembers(groupInfo)) {
+        groupInfo = webGroup
+      }
+    }
+
     const groupName = groupInfo?.name ?? groupId
-    const memberIds = collectMemberUids(groupInfo)
+    const totalMember = groupInfo?.totalMember ?? appGroup?.totalMember
+    let memberIds = collectMemberUids(groupInfo)
+
+    if (totalMember && totalMember > 0 && memberIds.length > 0 && memberIds.length < totalMember) {
+      if (!appSession) {
+        throw new Error(
+          `${CLOSED_GROUP_SCAN_HINT} (hiện thấy ${memberIds.length}/${totalMember} thành viên).`,
+        )
+      }
+      throw new Error(
+        `Nhóm ẩn danh sách thành viên (chỉ lấy được ${memberIds.length}/${totalMember} quản trị viên). ${CLOSED_GROUP_SCAN_HINT}`,
+      )
+    }
+
     if (memberIds.length === 0) {
       throw new Error(
         'Zalo không trả danh sách thành viên cho nhóm này (tài khoản có thể không còn trong nhóm).',
       )
+    }
+
+    const seededFromCurrentMems = new Map<string, MemberProfile>()
+    for (const m of appGroup?.currentMems ?? []) {
+      if (!m?.id) continue
+      seededFromCurrentMems.set(String(m.id), {
+        displayName: m.dName,
+        zaloName: m.zaloName,
+      })
     }
 
     await prisma.zaloGroupScan.update({
@@ -243,9 +320,9 @@ async function runScanJob(
 
     for (const batch of batches) {
       if (batch.length === 0) continue
-      const profiles = await fetchMemberProfiles(api, batch)
+      const profiles = await fetchMemberProfiles(api, batch, appSession)
       for (const uid of batch) {
-        const p = profiles.get(uid)
+        const p = profiles.get(uid) ?? seededFromCurrentMems.get(uid)
         allProfiles.push({
           uid,
           displayName: p?.displayName || null,
@@ -318,6 +395,21 @@ export async function getScanForUser(scanId: string, ownerUserId: string) {
     },
   })
   return scan
+}
+
+export async function deleteScanForUser(scanId: string, ownerUserId: string) {
+  const scan = await prisma.zaloGroupScan.findFirst({
+    where: { id: scanId, ownerUserId },
+  })
+  if (!scan) throw new Error('NOT_FOUND')
+  if (scan.status === 'running') throw new Error('SCAN_RUNNING')
+  await prisma.zaloGroupScan.delete({ where: { id: scanId } })
+}
+
+export async function clearScansForUser(ownerUserId: string) {
+  await prisma.zaloGroupScan.deleteMany({
+    where: { ownerUserId, status: { not: 'running' } },
+  })
 }
 
 export async function listScansForUser(ownerUserId: string) {

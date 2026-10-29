@@ -5,8 +5,10 @@ import { loadZcaSync, type ZaloApi } from './zcaClient'
 import {
   decryptZaloCredentials,
   encryptZaloCredentials,
+  type ZaloAppSession,
   type ZaloStoredCredentials,
 } from './zaloCredentialCrypto'
+import { loginWithPcAppQr } from './zaloPcAppClient'
 import { prisma } from './prisma'
 import { broadcastToUser } from './zaloWs'
 
@@ -85,6 +87,7 @@ async function persistAccountFromApi(
   ownerUserId: string,
   api: ZaloApi,
   meta?: { displayName?: string; avatar?: string },
+  credOverrides?: Partial<ZaloStoredCredentials>,
 ) {
   const zaloUid = String(await api.getOwnId())
   let displayName = meta?.displayName ?? zaloUid
@@ -101,10 +104,27 @@ async function persistAccountFromApi(
 
   const ctx = api.getContext()
   const cookieJar = ctx.cookie as { toJSON?: () => { cookies: unknown } } | null
+
+  let preservedAppSession: ZaloAppSession | undefined = credOverrides?.appSession
+  if (preservedAppSession === undefined) {
+    const existingRow = await prisma.zaloAccount.findFirst({
+      where: { ownerUserId, zaloUid },
+      select: { credentialsEnc: true },
+    })
+    if (existingRow) {
+      try {
+        preservedAppSession = decryptZaloCredentials(existingRow.credentialsEnc).appSession
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   const credentials: ZaloStoredCredentials = {
-    cookie: cookieJar?.toJSON?.()?.cookies ?? ctx.cookie,
-    imei: ctx.imei,
-    userAgent: ctx.userAgent,
+    cookie: credOverrides?.cookie ?? cookieJar?.toJSON?.()?.cookies ?? ctx.cookie,
+    imei: credOverrides?.imei ?? ctx.imei,
+    userAgent: credOverrides?.userAgent ?? ctx.userAgent,
+    ...(preservedAppSession ? { appSession: preservedAppSession } : {}),
   }
   const credentialsEnc = encryptZaloCredentials(credentials)
 
@@ -130,6 +150,22 @@ async function persistAccountFromApi(
 
   accountApis.set(account.id, api)
   return account
+}
+
+export async function getAppSessionForAccount(
+  accountId: string,
+  ownerUserId: string,
+): Promise<ZaloAppSession | null> {
+  const row = await prisma.zaloAccount.findFirst({
+    where: { id: accountId, ownerUserId },
+    select: { credentialsEnc: true },
+  })
+  if (!row) return null
+  try {
+    return decryptZaloCredentials(row.credentialsEnc).appSession ?? null
+  } catch {
+    return null
+  }
 }
 
 export async function getApiForAccount(accountId: string, ownerUserId: string): Promise<ZaloApi> {
@@ -220,75 +256,142 @@ export async function startQrLogin(ownerUserId: string): Promise<{ loginId: stri
   qrSessions.set(loginId, session)
 
   void (async () => {
-    const { Zalo, LoginQRCallbackEventType } = loadZcaSync()
-    const zalo = new Zalo({ selfListen: false, logging: false })
+    const currentAtStart = qrSessions.get(loginId)
+    if (!currentAtStart) return
 
-    return zalo.loginQR({ userAgent: DEFAULT_UA, language: 'vi' }, (event) => {
+    const abortController = new AbortController()
+    currentAtStart.abort = () => abortController.abort()
+
+    const runWebQrFallback = () => {
+      const { Zalo, LoginQRCallbackEventType } = loadZcaSync()
+      const zalo = new Zalo({ selfListen: false, logging: false })
+
+      return zalo.loginQR({ userAgent: DEFAULT_UA, language: 'vi' }, (event) => {
+        const current = qrSessions.get(loginId)
+        if (!current || current.ownerUserId !== ownerUserId) return
+
+        if (event.type === LoginQRCallbackEventType.QRCodeGenerated) {
+          current.status = 'waiting_scan'
+          current.qrImage = String(event.data.image ?? '')
+          current.updatedAt = Date.now()
+          const abortFn = event.actions?.abort
+          if (abortFn) current.abort = () => abortFn()
+          publishQr(ownerUserId, { ...current })
+          return
+        }
+
+        if (event.type === LoginQRCallbackEventType.QRCodeScanned) {
+          current.status = 'scanned'
+          current.scannedDisplayName = String(event.data.display_name ?? '')
+          current.scannedAvatar = String(event.data.avatar ?? '')
+          current.updatedAt = Date.now()
+          publishQr(ownerUserId, { ...current })
+          return
+        }
+
+        if (event.type === LoginQRCallbackEventType.QRCodeExpired) {
+          current.status = 'expired'
+          current.updatedAt = Date.now()
+          publishQr(ownerUserId, { ...current })
+          return
+        }
+
+        if (event.type === LoginQRCallbackEventType.QRCodeDeclined) {
+          current.status = 'declined'
+          current.updatedAt = Date.now()
+          publishQr(ownerUserId, { ...current })
+          return
+        }
+      })
+        .then(async (api) => {
+          const current = qrSessions.get(loginId)
+          if (!current) return
+
+          try {
+            const account = await persistAccountFromApi(ownerUserId, api, {
+              displayName: current.scannedDisplayName,
+              avatar: current.scannedAvatar,
+            })
+            current.status = 'success'
+            current.accountId = account.id
+            current.updatedAt = Date.now()
+            publishQr(ownerUserId, { ...current })
+            publishLoggedIn(ownerUserId, account)
+          } catch (err: unknown) {
+            current.status = 'error'
+            current.errorMessage = err instanceof Error ? err.message : 'Login failed'
+            current.updatedAt = Date.now()
+            publishQr(ownerUserId, { ...current })
+          }
+        })
+        .catch((err: unknown) => {
+          const current = qrSessions.get(loginId)
+          if (!current) return
+          current.status = 'error'
+          current.errorMessage = err instanceof Error ? err.message : 'QR login failed'
+          current.updatedAt = Date.now()
+          publishQr(ownerUserId, { ...current })
+        })
+    }
+
+    try {
+      const pcResult = await loginWithPcAppQr(
+        {
+          onQrImage: (base64) => {
+            const current = qrSessions.get(loginId)
+            if (!current || current.ownerUserId !== ownerUserId) return
+            current.status = 'waiting_scan'
+            current.qrImage = base64
+            current.updatedAt = Date.now()
+            publishQr(ownerUserId, { ...current })
+          },
+          onScanned: (displayName) => {
+            const current = qrSessions.get(loginId)
+            if (!current || current.ownerUserId !== ownerUserId) return
+            current.status = 'scanned'
+            current.scannedDisplayName = displayName
+            current.updatedAt = Date.now()
+            publishQr(ownerUserId, { ...current })
+          },
+        },
+        abortController.signal,
+      )
+
       const current = qrSessions.get(loginId)
-      if (!current || current.ownerUserId !== ownerUserId) return
+      if (!current) return
 
-      if (event.type === LoginQRCallbackEventType.QRCodeGenerated) {
-        current.status = 'waiting_scan'
-        current.qrImage = String(event.data.image ?? '')
-        current.updatedAt = Date.now()
-        const abortFn = event.actions?.abort
-        if (abortFn) current.abort = () => abortFn()
-        publishQr(ownerUserId, { ...current })
-        return
-      }
-
-      if (event.type === LoginQRCallbackEventType.QRCodeScanned) {
-        current.status = 'scanned'
-        current.scannedDisplayName = String(event.data.display_name ?? '')
-        current.scannedAvatar = String(event.data.avatar ?? '')
-        current.updatedAt = Date.now()
-        publishQr(ownerUserId, { ...current })
-        return
-      }
-
-      if (event.type === LoginQRCallbackEventType.QRCodeExpired) {
+      const account = await persistAccountFromApi(
+        ownerUserId,
+        pcResult.api,
+        {
+          displayName: pcResult.displayName,
+          avatar: pcResult.avatar,
+        },
+        {
+          cookie: pcResult.cookie,
+          imei: pcResult.imei,
+          userAgent: pcResult.userAgent,
+          appSession: pcResult.appSession,
+        },
+      )
+      current.status = 'success'
+      current.accountId = account.id
+      current.updatedAt = Date.now()
+      publishQr(ownerUserId, { ...current })
+      publishLoggedIn(ownerUserId, account)
+    } catch (pcErr) {
+      const msg = pcErr instanceof Error ? pcErr.message : String(pcErr)
+      if (msg === 'PC_APP_QR_CANCELLED') return
+      const current = qrSessions.get(loginId)
+      if (msg === 'PC_APP_QR_EXPIRED' && current) {
         current.status = 'expired'
         current.updatedAt = Date.now()
         publishQr(ownerUserId, { ...current })
         return
       }
-
-      if (event.type === LoginQRCallbackEventType.QRCodeDeclined) {
-        current.status = 'declined'
-        current.updatedAt = Date.now()
-        publishQr(ownerUserId, { ...current })
-        return
-      }
-    })
-      .then(async (api) => {
-        const current = qrSessions.get(loginId)
-        if (!current) return
-
-        try {
-          const account = await persistAccountFromApi(ownerUserId, api, {
-            displayName: current.scannedDisplayName,
-            avatar: current.scannedAvatar,
-          })
-          current.status = 'success'
-          current.accountId = account.id
-          current.updatedAt = Date.now()
-          publishQr(ownerUserId, { ...current })
-          publishLoggedIn(ownerUserId, account)
-        } catch (err: unknown) {
-          current.status = 'error'
-          current.errorMessage = err instanceof Error ? err.message : 'Login failed'
-          current.updatedAt = Date.now()
-          publishQr(ownerUserId, { ...current })
-        }
-      })
-      .catch((err: unknown) => {
-        const current = qrSessions.get(loginId)
-        if (!current) return
-        current.status = 'error'
-        current.errorMessage = err instanceof Error ? err.message : 'QR login failed'
-        current.updatedAt = Date.now()
-        publishQr(ownerUserId, { ...current })
-      })
+      console.warn(`[zalo] PC App QR failed, fallback to Web QR: ${msg}`)
+      await runWebQrFallback()
+    }
   })()
 
   return { loginId }

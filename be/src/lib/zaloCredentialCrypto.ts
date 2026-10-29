@@ -2,10 +2,17 @@ import crypto from 'crypto'
 
 import { env } from '../config/env'
 
+export type ZaloAppSession = {
+  zpwEnk: string
+  imei: string
+  cookies: Array<{ name: string; value: string; domain: string }>
+}
+
 export type ZaloStoredCredentials = {
   cookie: unknown
   imei: string
   userAgent: string
+  appSession?: ZaloAppSession
 }
 
 function resolveKey(): Buffer {

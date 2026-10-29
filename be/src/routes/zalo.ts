@@ -4,6 +4,8 @@ import { requireAuth } from '../middleware/auth'
 import { sendXlsxDownload } from '../lib/excel'
 import {
   buildScanExportBuffer,
+  clearScansForUser,
+  deleteScanForUser,
   getScanForUser,
   humanizeZaloClientError,
   listGroupsForAccount,
@@ -165,6 +167,33 @@ zaloRouter.get('/scans', async (req, res) => {
   const userId = req.auth!.userId
   const scans = await listScansForUser(userId)
   res.json({ success: true, data: scans })
+})
+
+zaloRouter.delete('/scans', async (req, res) => {
+  const userId = req.auth!.userId
+  await clearScansForUser(userId)
+  res.json({ success: true })
+})
+
+zaloRouter.delete('/scans/:scanId', async (req, res) => {
+  const userId = req.auth!.userId
+  try {
+    await deleteScanForUser(String(req.params.scanId), userId)
+    res.json({ success: true })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Delete failed'
+    if (message === 'NOT_FOUND') {
+      return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'Scan not found.' })
+    }
+    if (message === 'SCAN_RUNNING') {
+      return res.status(400).json({
+        success: false,
+        code: 'SCAN_RUNNING',
+        message: 'Không thể xoá lần quét đang chạy.',
+      })
+    }
+    return res.status(500).json({ success: false, code: 'DELETE_FAILED', message })
+  }
 })
 
 zaloRouter.get('/scans/:scanId', async (req, res) => {
