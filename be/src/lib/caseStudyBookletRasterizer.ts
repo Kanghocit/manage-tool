@@ -1,12 +1,29 @@
 import fs from 'fs/promises'
 import path from 'path'
-import { createCanvas, type Canvas, type CanvasRenderingContext2D } from 'canvas'
 
 import {
   ensureDir,
   getImportSessionDir,
   pageFileName,
 } from './caseStudyStorage'
+
+type NodeCanvas = {
+  width: number
+  height: number
+  getContext(type: '2d'): CanvasRenderingContext2D | null
+  toBuffer(mimeType: 'image/jpeg', config?: { quality?: number }): Buffer
+}
+
+type CreateCanvasFn = (width: number, height: number) => NodeCanvas
+
+async function loadCreateCanvas(): Promise<CreateCanvasFn> {
+  try {
+    const mod = await import('canvas')
+    return mod.createCanvas as unknown as CreateCanvasFn
+  } catch (err) {
+    throw new Error(bookletRasterizerErrorMessage(err))
+  }
+}
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pdfjs = require('pdfjs-dist/legacy/build/pdf.js') as typeof import('pdfjs-dist')
@@ -23,14 +40,19 @@ export type RasterizedPage = {
 }
 
 type CanvasAndContext = {
-  canvas: Canvas
-  context: CanvasRenderingContext2D
+  canvas: NodeCanvas
+  context: unknown
 }
 
 class NodeCanvasFactory {
+  constructor(private readonly createCanvas: CreateCanvasFn) {}
+
   create(width: number, height: number): CanvasAndContext {
-    const canvas = createCanvas(width, height)
+    const canvas = this.createCanvas(width, height)
     const context = canvas.getContext('2d')
+    if (!context) {
+      throw new Error('Không tạo được canvas 2d để render PDF.')
+    }
     return { canvas, context }
   }
 
@@ -47,7 +69,11 @@ class NodeCanvasFactory {
 
 export function bookletRasterizerErrorMessage(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err)
-  if (/cannot find module 'canvas'|node canvas|libcairo|libjpeg|libpng/i.test(message)) {
+  if (
+    /cannot find module.*canvas|canvas\.node|node canvas|libcairo|libjpeg|libpng/i.test(
+      message,
+    )
+  ) {
     return 'Server thiếu thư viện canvas để chuyển PDF đề thành ảnh. Cài build deps (libcairo2-dev, libpango1.0-dev, libjpeg-dev) rồi chạy npm install trong thư mục be.'
   }
   if (/Invalid PDF|Missing PDF/i.test(message)) {
@@ -60,7 +86,8 @@ export async function rasterizeBookletPdf(
   buffer: Buffer,
   sessionId: string,
 ): Promise<RasterizedPage[]> {
-  const canvasFactory = new NodeCanvasFactory()
+  const createCanvas = await loadCreateCanvas()
+  const canvasFactory = new NodeCanvasFactory(createCanvas)
   const pdf = await pdfjs.getDocument({
     data: new Uint8Array(buffer),
     canvasFactory,

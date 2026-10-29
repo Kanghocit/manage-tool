@@ -28,7 +28,9 @@ cd be
 rm -rf node_modules
 npm ci --ignore-scripts
 # Native addons + Prisma client (skip auto postinstall during ci — generate explicitly).
-npm rebuild canvas bcrypt sharp 2>/dev/null || true
+if ! npm rebuild canvas bcrypt sharp; then
+  echo "WARN: native rebuild failed — install: libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev build-essential"
+fi
 npx prisma generate
 npm run build
 npx prisma migrate deploy
