@@ -108,8 +108,77 @@ model User {
   studyUserWords           StudyUserWord[]
   caseStudySetsCreated     CaseStudySet[]      @relation("CaseStudySetCreator")
   caseStudyAttempts        CaseStudyAttempt[]
+  zaloAccounts             ZaloAccount[]
+  zaloGroupScans           ZaloGroupScan[]
 
   @@index([registrationSource, welcomeEmailSentAt])
+}
+
+enum ZaloAccountStatus {
+  active
+  disconnected
+  error
+}
+
+enum ZaloGroupScanStatus {
+  running
+  completed
+  failed
+}
+
+model ZaloAccount {
+  id             String            @id @default(uuid())
+  ownerUserId    String
+  zaloUid        String
+  displayName    String
+  avatar         String?
+  credentialsEnc String            @db.Text
+  status         ZaloAccountStatus @default(active)
+  lastActiveAt   DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  owner      User            @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  groupScans ZaloGroupScan[]
+
+  @@unique([ownerUserId, zaloUid])
+  @@index([ownerUserId])
+}
+
+model ZaloGroupScan {
+  id           String               @id @default(uuid())
+  accountId    String
+  ownerUserId  String
+  groupId      String
+  groupName    String?
+  memberCount  Int                  @default(0)
+  status       ZaloGroupScanStatus  @default(running)
+  progress     Int                  @default(0)
+  errorMessage String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  account ZaloAccount       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  owner   User              @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  members ZaloGroupMember[]
+
+  @@index([ownerUserId, createdAt])
+  @@index([accountId])
+}
+
+model ZaloGroupMember {
+  id          String  @id @default(uuid())
+  scanId      String
+  uid         String
+  displayName String?
+  zaloName    String?
+  avatar      String?
+  memberType  Int?
+
+  scan ZaloGroupScan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@unique([scanId, uid])
+  @@index([scanId])
 }
 
 model AuthHandoffCode {

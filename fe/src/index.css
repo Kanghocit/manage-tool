@@ -21,6 +21,10 @@ body {
   margin: 0;
 }
 
+.zalo-page .ant-pro-page-container-children-content {
+  max-width: 1200px;
+}
+
 * {
   box-sizing: border-box;
 }

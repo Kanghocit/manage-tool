@@ -90,6 +90,10 @@ export const env = {
   caseStudyImportTmpDir: process.env.CASE_STUDY_IMPORT_TMP_DIR ?? 'tmp/case-import',
   caseStudyImportTtlMs: Number(process.env.CASE_STUDY_IMPORT_TTL_MS ?? 2 * 60 * 60 * 1000),
 
+  /** AES-256 key for Zalo session credentials (32-byte hex or base64) */
+  zaloCredKey: required('ZALO_CRED_KEY', '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'),
+
+  zaloMaxAccountsPerUser: Number(process.env.ZALO_MAX_ACCOUNTS_PER_USER ?? 10),
 }
 
 export function isSmtpConfigured(): boolean {

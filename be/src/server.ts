@@ -2,6 +2,7 @@ import { createApp } from './app'
 import { env } from './config/env'
 import { prisma } from './lib/prisma'
 import { attachSupportWebSocket } from './lib/supportWs'
+import { attachZaloWebSocket } from './lib/zaloWs'
 
 const start = async () => {
   const app = createApp()
@@ -11,7 +12,9 @@ const start = async () => {
   })
 
   attachSupportWebSocket(server)
+  attachZaloWebSocket(server)
   console.log('[api] WebSocket support chat enabled at /ws/support')
+  console.log('[api] WebSocket Zalo enabled at /ws/zalo')
 
   const shutdown = async (signal: string) => {
     console.log(`[api] received ${signal}, closing...`)

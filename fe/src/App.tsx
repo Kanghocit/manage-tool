@@ -15,8 +15,19 @@ export default function App() {
       locale={lang === "vi" ? viVN : enUS}
       theme={{
         token: {
-          colorPrimary: "#1677ff",
-          borderRadius: 14,
+          colorPrimary: "#2563eb",
+          colorBgLayout: "#f8fafc",
+          colorText: "#0f172a",
+          colorTextSecondary: "#64748b",
+          borderRadius: 12,
+          fontFamily:
+            'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          controlHeight: 40,
+        },
+        components: {
+          Button: { controlHeight: 40, paddingInline: 18 },
+          Card: { borderRadiusLG: 16 },
+          Table: { headerBg: "#f1f5f9" },
         },
       }}
     >

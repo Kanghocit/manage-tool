@@ -27,6 +27,7 @@ import { licenseRequestsRouter } from './routes/licenseRequests'
 import { supportRouter } from './routes/support'
 import { adminSupportRouter } from './routes/adminSupport'
 import { studyRouter } from './routes/study'
+import { zaloRouter } from './routes/zalo'
 
 export const createApp = () => {
   const app = express();
@@ -188,6 +189,16 @@ export const createApp = () => {
       legacyHeaders: false,
     }),
     studyRouter,
+  )
+  app.use(
+    '/api/zalo',
+    rateLimit({
+      windowMs: 60 * 1000,
+      limit: 120,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+    zaloRouter,
   )
   app.use('/', privacyRouter)
 
