@@ -129,6 +129,84 @@ export async function startGroupMemberScan(
   return { scanId: scan.id }
 }
 
+type GroupInfoEntry = Awaited<ReturnType<ZaloApi['getGroupInfo']>>['gridInfoMap'][string]
+
+type MemberProfile = {
+  displayName?: string
+  zaloName?: string
+  avatar?: string
+  type?: number
+}
+
+/**
+ * Zalo stopped populating memberIds/currentMems for closed groups (lockViewMember), but
+ * memVerList ("uid_version") still lists every member — see zca-js issue #359.
+ */
+function collectMemberUids(group: GroupInfoEntry | undefined): string[] {
+  const uids = new Set<string>()
+  for (const entry of group?.memVerList ?? []) {
+    const uid = String(entry).split('_')[0]
+    if (uid) uids.add(uid)
+  }
+  for (const id of group?.memberIds ?? []) {
+    if (id) uids.add(String(id))
+  }
+  for (const m of group?.currentMems ?? []) {
+    const id = typeof m === 'string' ? m : m?.id
+    if (id) uids.add(String(id))
+  }
+  return [...uids]
+}
+
+function stripVersion(key: string) {
+  return key.split('_')[0]
+}
+
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn()
+  } catch {
+    await sleep(BATCH_DELAY_MS * 3)
+    return fn()
+  }
+}
+
+/**
+ * getUserInfo returns names for every UID, strangers included; getGroupMembersInfo is a
+ * fallback for whatever it misses. A failing batch yields UIDs without names instead of
+ * aborting the scan.
+ */
+async function fetchMemberProfiles(api: ZaloApi, uids: string[]) {
+  const profiles = new Map<string, MemberProfile>()
+
+  try {
+    const res = await withRetry(() => api.getUserInfo(uids))
+    for (const [key, p] of Object.entries(res.changed_profiles ?? {})) {
+      profiles.set(stripVersion(key), p)
+    }
+  } catch (err) {
+    console.warn(`[zalo] getUserInfo batch failed: ${errorMessage(err)}`)
+  }
+
+  const missing = uids.filter((uid) => {
+    const p = profiles.get(uid)
+    return !p?.displayName && !p?.zaloName
+  })
+  if (missing.length) {
+    try {
+      const res = await withRetry(() => api.getGroupMembersInfo(missing))
+      for (const [key, p] of Object.entries(res.profiles ?? {})) {
+        const uid = stripVersion(key)
+        profiles.set(uid, { ...profiles.get(uid), ...p })
+      }
+    } catch (err) {
+      console.warn(`[zalo] getGroupMembersInfo fallback failed: ${errorMessage(err)}`)
+    }
+  }
+
+  return profiles
+}
+
 async function runScanJob(
   scanId: string,
   accountId: string,
@@ -140,9 +218,12 @@ async function runScanJob(
     const infoRes = await api.getGroupInfo(groupId)
     const groupInfo = infoRes.gridInfoMap?.[groupId]
     const groupName = groupInfo?.name ?? groupId
-    const memberIds = (groupInfo?.memVerList ?? []).map((entry: string) =>
-      String(entry).split('_')[0],
-    )
+    const memberIds = collectMemberUids(groupInfo)
+    if (memberIds.length === 0) {
+      throw new Error(
+        'Zalo không trả danh sách thành viên cho nhóm này (tài khoản có thể không còn trong nhóm).',
+      )
+    }
 
     await prisma.zaloGroupScan.update({
       where: { id: scanId },
@@ -162,16 +243,14 @@ async function runScanJob(
 
     for (const batch of batches) {
       if (batch.length === 0) continue
-      const res = await api.getGroupMembersInfo(batch)
-      const profiles = res.profiles ?? {}
+      const profiles = await fetchMemberProfiles(api, batch)
       for (const uid of batch) {
-        const uidKey = String(uid)
-        const p = profiles[uidKey]
+        const p = profiles.get(uid)
         allProfiles.push({
-          uid: uidKey,
-          displayName: p?.displayName ?? null,
-          zaloName: p?.zaloName ?? null,
-          avatar: p?.avatar ?? null,
+          uid,
+          displayName: p?.displayName || null,
+          zaloName: p?.zaloName || null,
+          avatar: p?.avatar || null,
           memberType: typeof p?.type === 'number' ? p.type : null,
         })
       }

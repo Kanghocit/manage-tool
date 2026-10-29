@@ -15,8 +15,24 @@ export type ZaloApi = {
   ) => Promise<{
     gridInfoMap: Record<
       string,
-      { name?: string; totalMember?: number; memVerList?: string[]; avatar?: string }
+      {
+        name?: string
+        totalMember?: number
+        memVerList?: string[]
+        memberIds?: string[]
+        currentMems?: Array<{ id?: string } | string>
+        avatar?: string
+      }
     >
+  }>
+  getUserInfo: (
+    userId: string | string[],
+  ) => Promise<{
+    changed_profiles?: Record<
+      string,
+      { displayName?: string; zaloName?: string; avatar?: string; type?: number }
+    >
+    unchanged_profiles?: Record<string, unknown>
   }>
   getGroupMembersInfo: (
     memberId: string | string[],
