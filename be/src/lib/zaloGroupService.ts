@@ -243,8 +243,24 @@ function countVisibleMembers(group: GroupInfoEntry | undefined): number {
   return collectMemberUids(group).length
 }
 
-const CLOSED_GROUP_SCAN_HINT =
-  'Nhóm này ẩn danh sách thành viên trên Zalo Web (chỉ thấy một phần quản trị viên). Hãy vào tab Tài khoản Zalo → bấm «Thêm bằng QR» (Zalo PC) cho tài khoản này rồi quét lại.'
+function buildPartialMemberWarning(input: {
+  seen: number
+  total: number
+  appSession: boolean
+  pcApiError: string | null
+  memberSource: 'pc' | 'web'
+  hadPcGroupData: boolean
+}): string {
+  const ratio = `${input.seen}/${input.total}`
+  if (!input.appSession) {
+    return `Zalo Web chỉ trả ${ratio} (nhóm ẩn thành viên). Thêm tài khoản bằng «Thêm bằng QR» (Zalo PC) rồi quét lại.`
+  }
+  if (input.pcApiError || (!input.hadPcGroupData && input.memberSource === 'web')) {
+    const detail = input.pcApiError ? ` (${input.pcApiError})` : ''
+    return `Phiên Zalo PC lỗi/hết hạn${detail} — quét lại «Thêm bằng QR» (Zalo PC). Đang hiển thị ${ratio} từ Zalo Web.`
+  }
+  return `Zalo ẩn danh sách cả trên Zalo PC (${ratio}).`
+}
 
 async function runScanJob(
   scanId: string,
@@ -258,10 +274,20 @@ async function runScanJob(
 
     let groupInfo: GroupInfoEntry | undefined
     let appGroup: AppGroupData | null = null
+    let pcApiError: string | null = null
+    let memberSource: 'pc' | 'web' = 'web'
+    let hadPcGroupData = false
 
     if (appSession) {
-      appGroup = await appGetGroupInfo(appSession, groupId)
-      groupInfo = appGroupToWebShape(appGroup)
+      const pcRes = await appGetGroupInfo(appSession, groupId)
+      appGroup = pcRes.data
+      pcApiError = pcRes.error
+      hadPcGroupData = Boolean(appGroup)
+      const pcShape = appGroupToWebShape(appGroup)
+      if (pcShape && countVisibleMembers(pcShape) > 0) {
+        groupInfo = pcShape
+        memberSource = 'pc'
+      }
     }
 
     if (!groupInfo || countVisibleMembers(groupInfo) === 0) {
@@ -269,22 +295,29 @@ async function runScanJob(
       const webGroup = infoRes.gridInfoMap?.[groupId]
       if (!groupInfo || countVisibleMembers(webGroup) > countVisibleMembers(groupInfo)) {
         groupInfo = webGroup
+        if (countVisibleMembers(webGroup) > 0) memberSource = 'web'
       }
     }
 
     const groupName = groupInfo?.name ?? groupId
-    const totalMember = groupInfo?.totalMember ?? appGroup?.totalMember
-    let memberIds = collectMemberUids(groupInfo)
+    await prisma.zaloGroupScan.update({
+      where: { id: scanId },
+      data: { groupName, progress: 2 },
+    })
 
+    const totalMember = groupInfo?.totalMember ?? appGroup?.totalMember
+    const memberIds = collectMemberUids(groupInfo)
+
+    let partialWarning: string | null = null
     if (totalMember && totalMember > 0 && memberIds.length > 0 && memberIds.length < totalMember) {
-      if (!appSession) {
-        throw new Error(
-          `${CLOSED_GROUP_SCAN_HINT} (hiện thấy ${memberIds.length}/${totalMember} thành viên).`,
-        )
-      }
-      throw new Error(
-        `Nhóm ẩn danh sách thành viên (chỉ lấy được ${memberIds.length}/${totalMember} quản trị viên). ${CLOSED_GROUP_SCAN_HINT}`,
-      )
+      partialWarning = buildPartialMemberWarning({
+        seen: memberIds.length,
+        total: totalMember,
+        appSession: Boolean(appSession),
+        pcApiError,
+        memberSource,
+        hadPcGroupData,
+      })
     }
 
     if (memberIds.length === 0) {
@@ -304,7 +337,7 @@ async function runScanJob(
 
     await prisma.zaloGroupScan.update({
       where: { id: scanId },
-      data: { groupName, progress: 5 },
+      data: { progress: 5 },
     })
     publishScanProgress(ownerUserId, { scanId, progress: 5, status: 'running' })
 
@@ -366,6 +399,7 @@ async function runScanJob(
           status: 'completed',
           progress: 100,
           memberCount: allProfiles.length,
+          errorMessage: partialWarning,
         },
       }),
     ])

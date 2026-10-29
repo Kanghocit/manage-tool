@@ -338,10 +338,15 @@ export async function loginWithPcAppQr(
   }
 }
 
+export type AppGroupInfoResult = {
+  data: AppGroupData | null
+  error: string | null
+}
+
 export async function appGetGroupInfo(
   appSession: ZaloAppSession,
   groupId: string,
-): Promise<AppGroupData | null> {
+): Promise<AppGroupInfoResult> {
   const url = `${GROUP_DOMAIN}/api/group/getmg-v2`
   const body = { gridVerMap: JSON.stringify({ [groupId]: 0 }) }
   const encBody = encodeAes(JSON.stringify(body), appSession.zpwEnk)
@@ -363,18 +368,22 @@ export async function appGetGroupInfo(
       error_message?: string
     }
     if (data.error_code !== 0 || !data.data) {
-      console.warn(
-        `[zalo-pc] getmg-v2 [${data.error_code}] ${data.error_message ?? ''}`,
-      )
-      return null
+      const err = `[${data.error_code}] ${data.error_message ?? 'no data'}`
+      console.warn(`[zalo-pc] getmg-v2 ${err}`)
+      return { data: null, error: err }
     }
     const parsed = JSON.parse(decodeAes(data.data, appSession.zpwEnk)) as {
       data?: { gridInfoMap?: Record<string, AppGroupData> }
     }
-    return parsed?.data?.gridInfoMap?.[groupId] ?? null
+    const group = parsed?.data?.gridInfoMap?.[groupId] ?? null
+    if (!group) {
+      return { data: null, error: 'empty gridInfoMap' }
+    }
+    return { data: group, error: null }
   } catch (err) {
-    console.warn(`[zalo-pc] getmg-v2 failed: ${err instanceof Error ? err.message : err}`)
-    return null
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn(`[zalo-pc] getmg-v2 failed: ${msg}`)
+    return { data: null, error: msg }
   }
 }
 

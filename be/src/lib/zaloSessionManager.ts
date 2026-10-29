@@ -64,7 +64,7 @@ export function getQrLoginSnapshot(loginId: string, ownerUserId: string): QrLogi
 }
 
 export async function listAccountsForUser(ownerUserId: string) {
-  return prisma.zaloAccount.findMany({
+  const rows = await prisma.zaloAccount.findMany({
     where: { ownerUserId },
     orderBy: { createdAt: 'desc' },
     select: {
@@ -75,7 +75,18 @@ export async function listAccountsForUser(ownerUserId: string) {
       status: true,
       lastActiveAt: true,
       createdAt: true,
+      credentialsEnc: true,
     },
+  })
+  return rows.map(({ credentialsEnc, ...rest }) => {
+    let hasPcSession = false
+    try {
+      const creds = decryptZaloCredentials(credentialsEnc)
+      hasPcSession = Boolean(creds.appSession?.zpwEnk)
+    } catch {
+      // ignore corrupt creds
+    }
+    return { ...rest, hasPcSession }
   })
 }
 
